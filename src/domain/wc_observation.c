@@ -43,8 +43,8 @@ WcVendor wc_oui_vendor(const uint8_t mac[6]) {
     return WcVendorUnknown;
 }
 
-const char *wc_oui_vendor_name(const uint8_t mac[6]) {
-    switch (wc_oui_vendor(mac)) {
+const char *wc_vendor_name(WcVendor v) {
+    switch (v) {
         case WcVendorApple:
             return "Apple";
         case WcVendorSamsung:
@@ -65,10 +65,31 @@ const char *wc_oui_vendor_name(const uint8_t mac[6]) {
             return "Espressif";
         case WcVendorRaspberryPi:
             return "Raspberry Pi";
+        case WcVendorQualcomm:
+            return "Qualcomm";
+        case WcVendorBroadcom:
+            return "Broadcom";
         case WcVendorUnknown:
         default:
             return "";
     }
+}
+
+const char *wc_oui_vendor_name(const uint8_t mac[6]) {
+    return wc_vendor_name(wc_oui_vendor(mac));
+}
+
+WcVendor wc_vendor_from_ie_oui(const uint8_t oui[3]) {
+    // Only real device-maker OUIs; the common WPS (00:50:F2), WFA (50:6F:9A) and similar are
+    // generic capability IEs present regardless of brand, so they map to Unknown.
+    if (oui[0] == 0x00 && oui[1] == 0x17 && oui[2] == 0xF2)
+        return WcVendorApple;
+    if (oui[0] == 0x8C && oui[1] == 0xFD && oui[2] == 0xF0)
+        return WcVendorQualcomm;
+    if ((oui[0] == 0x00 && oui[1] == 0x10 && oui[2] == 0x18) ||
+        (oui[0] == 0x00 && oui[1] == 0x90 && oui[2] == 0x4C))
+        return WcVendorBroadcom;
+    return WcVendorUnknown;
 }
 
 WcDeviceType wc_device_type_guess(const WcObservation *obs) {

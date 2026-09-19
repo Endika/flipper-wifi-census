@@ -50,6 +50,9 @@ bool wc_parse_probe_frame(const uint8_t *frame, size_t len, WcObservation *out) 
             out->probed_ssid[n] = '\0';
         } else if (tag == 3 && tlen >= 1) {
             out->channel = val[0];
+        } else if (tag == 221 && tlen >= 3 && out->ie_vendor == WcVendorUnknown) {
+            // A vendor-specific IE can name the maker even under MAC randomization.
+            out->ie_vendor = wc_vendor_from_ie_oui(val);
         }
         if (is_fingerprint_tag(tag)) {
             for (uint8_t i = 0; i < tlen; i++) {

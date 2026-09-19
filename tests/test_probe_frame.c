@@ -63,8 +63,34 @@ static void test_rejects_non_probe_and_truncation(void) {
     assert(wc_parse_probe_frame(k_frame, 30, &o));
 }
 
+static void test_ie_vendor_from_tag221(void) {
+    // Minimal probe with a vendor-specific IE carrying Apple's OUI (00:17:F2).
+    uint8_t f[24 + 6];
+    memset(f, 0, sizeof(f));
+    f[0] = 0x40;  // probe request
+    f[10] = 0xDA; // randomized source MAC
+    f[24] = 221;  // tag 221 (vendor specific)
+    f[25] = 4;    // length
+    f[26] = 0x00;
+    f[27] = 0x17;
+    f[28] = 0xF2; // Apple OUI
+    f[29] = 0x0A; // vendor subtype
+    WcObservation o;
+    assert(wc_parse_probe_frame(f, sizeof(f), &o));
+    assert(o.mac_random);
+    assert(o.ie_vendor == WcVendorApple); // brand even with a randomized MAC
+
+    // A generic WPS OUI (00:50:F2) must NOT be read as a brand.
+    f[26] = 0x00;
+    f[27] = 0x50;
+    f[28] = 0xF2;
+    assert(wc_parse_probe_frame(f, sizeof(f), &o));
+    assert(o.ie_vendor == WcVendorUnknown);
+}
+
 int main(void) {
     test_parse_real_probe();
+    test_ie_vendor_from_tag221();
     test_fingerprint_stable_but_ssid_independent();
     test_rejects_non_probe_and_truncation();
     printf("test_probe_frame: OK\n");

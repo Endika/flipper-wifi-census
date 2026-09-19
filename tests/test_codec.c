@@ -24,6 +24,8 @@ static void test_round_trip(void) {
     uint8_t m2[6] = {0xDA, 0, 0, 0, 0, 9};
     fill_device(&c.devices[0], m1, false, WcDeviceIot, -55, 10, 100, 200);
     wc_signature_add_ssid(&c.devices[0], "Home,Net"); // comma to stress CSV, ok in binary
+    c.devices[0].ie_hash = 0xDEADBEEFu;
+    c.devices[0].ie_vendor = WcVendorApple;
     fill_device(&c.devices[1], m2, true, WcDevicePhone, -70, 3, 150, 160);
     c.count = 2;
 
@@ -57,6 +59,43 @@ static void test_round_trip(void) {
     assert(strcmp(c2.devices[0].ssids[0], "Home,Net") == 0);
     assert(c2.devices[1].mac_random);
     assert(c2.devices[1].type == WcDevicePhone);
+    assert(c2.devices[0].ie_hash == 0xDEADBEEFu);
+    assert(c2.devices[0].ie_vendor == WcVendorApple);
+}
+
+static void test_reads_v1_capture(void) {
+    // A hand-built v1 capture (no IE fields) must still load, with ie_hash/ie_vendor defaulted.
+    uint8_t buf[512];
+    memset(buf, 0, sizeof(buf));
+    size_t o = 0;
+    memcpy(buf, "WCEN", 4);
+    o = 4;
+    buf[o++] = 1; // version 1 (LE)
+    buf[o++] = 0;
+    o += WC_LABEL_MAX;  // label (zeros)
+    o += 4 + 4 + 2 + 1; // epoch, duration, channels, mode (zeros)
+    buf[o++] = 1;       // count = 1
+    buf[o++] = 0;
+    size_t rec = o;
+    const uint8_t mac[6] = {0x00, 0x1B, 0x21, 1, 2, 3};
+    memcpy(buf + o, mac, 6);
+    o += 6;
+    buf[o++] = 0;                                  // mac_random
+    buf[o++] = WcDeviceLaptop;                     // type
+    buf[o++] = (uint8_t)(-50);                     // rssi
+    buf[o++] = 0;                                  // ssid_count
+    o += 4 + 4 + 4;                                // obs, first, last
+    o += WC_SIG_MAX_SSIDS * (WC_SSID_MAX_LEN + 1); // ssid slots
+    size_t v1_len = o;
+    (void)rec;
+
+    WcCaptureMeta m;
+    WcCensus c;
+    assert(wc_capture_read(&m, &c, buf, v1_len));
+    assert(c.count == 1);
+    assert(c.devices[0].type == WcDeviceLaptop);
+    assert(c.devices[0].ie_hash == 0);
+    assert(c.devices[0].ie_vendor == WcVendorUnknown);
 }
 
 static void test_write_rejects_small_buffer(void) {
@@ -123,8 +162,9 @@ static void test_csv(void) {
     char out[512];
     size_t len = wc_capture_to_csv(out, sizeof(out), &meta, &c);
     assert(len < sizeof(out));
-    assert(strstr(out, "mac,random,type,vendor,rssi_max,obs_count,first_seen,last_seen,ssids"));
-    assert(strstr(out, "AB:CD:EF:01:02:03,0,iot,,-55,7,100,200,\"Cafe,WiFi\""));
+    assert(strstr(
+        out, "mac,random,type,vendor,fingerprint,rssi_max,obs_count,first_seen,last_seen,ssids"));
+    assert(strstr(out, "AB:CD:EF:01:02:03,0,iot,,00000000,-55,7,100,200,\"Cafe,WiFi\""));
 
     // Truncation: a tiny buffer stays NUL-terminated and reports the full needed length.
     char small[16];
@@ -135,6 +175,7 @@ static void test_csv(void) {
 
 int main(void) {
     test_round_trip();
+    test_reads_v1_capture();
     test_write_rejects_small_buffer();
     test_read_rejects_bad_input();
     test_read_rejects_truncation();

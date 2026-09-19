@@ -36,6 +36,8 @@ void wc_signature_from_obs(WcSignature *sig, const WcObservation *obs, uint32_t 
     sig->obs_count = 1;
     sig->first_seen = now;
     sig->last_seen = now;
+    sig->ie_hash = obs->ie_hash;
+    sig->ie_vendor = obs->ie_vendor;
     wc_signature_add_ssid(sig, obs->probed_ssid);
 }
 
@@ -48,6 +50,12 @@ void wc_signature_merge(WcSignature *sig, const WcObservation *obs, uint32_t now
     // A later beacon or vendor-bearing frame can sharpen an initially unknown type.
     if (sig->type == WcDeviceUnknown) {
         sig->type = wc_device_type_guess(obs);
+    }
+    if (sig->ie_hash == 0) {
+        sig->ie_hash = obs->ie_hash;
+    }
+    if (sig->ie_vendor == WcVendorUnknown) {
+        sig->ie_vendor = obs->ie_vendor;
     }
     wc_signature_add_ssid(sig, obs->probed_ssid);
 }
@@ -69,4 +77,18 @@ void wc_signature_absorb(WcSignature *dst, const WcSignature *src) {
     if (dst->type == WcDeviceUnknown) {
         dst->type = src->type;
     }
+    if (dst->ie_hash == 0) {
+        dst->ie_hash = src->ie_hash;
+    }
+    if (dst->ie_vendor == WcVendorUnknown) {
+        dst->ie_vendor = src->ie_vendor;
+    }
+}
+
+const char *wc_signature_vendor(const WcSignature *sig) {
+    const char *oui = wc_oui_vendor_name(sig->mac);
+    if (oui[0] != '\0') {
+        return oui;
+    }
+    return wc_vendor_name(sig->ie_vendor);
 }

@@ -8,7 +8,14 @@ static const uint8_t k_magic[4] = {'W', 'C', 'E', 'N'};
 
 #define WC_HEADER_SIZE (4 + 2 + WC_LABEL_MAX + 4 + 4 + 2 + 1 + 2)
 #define WC_SSID_SLOT (WC_SSID_MAX_LEN + 1)
-#define WC_RECORD_SIZE (6 + 1 + 1 + 1 + 1 + 4 + 4 + 4 + WC_SIG_MAX_SSIDS * WC_SSID_SLOT)
+// v1 record layout; v2 appends ie_hash (4) + ie_vendor (1) at the end, so v1 is a prefix of
+// v2 and old captures still read.
+#define WC_RECORD_V1 (6 + 1 + 1 + 1 + 1 + 4 + 4 + 4 + WC_SIG_MAX_SSIDS * WC_SSID_SLOT)
+#define WC_RECORD_V2 (WC_RECORD_V1 + 4 + 1)
+
+static size_t record_size(uint16_t version) {
+    return version >= 2 ? WC_RECORD_V2 : WC_RECORD_V1;
+}
 
 // --- little-endian primitives (endian-independent on any host) ---
 
@@ -33,11 +40,11 @@ static uint32_t get_u32(const uint8_t *p) {
 }
 
 size_t wc_capture_size(const WcCensus *c) {
-    return WC_HEADER_SIZE + (size_t)c->count * WC_RECORD_SIZE;
+    return WC_HEADER_SIZE + (size_t)c->count * WC_RECORD_V2;
 }
 
 size_t wc_capture_max_size(void) {
-    return WC_HEADER_SIZE + (size_t)WC_CENSUS_MAX_DEVICES * WC_RECORD_SIZE;
+    return WC_HEADER_SIZE + (size_t)WC_CENSUS_MAX_DEVICES * WC_RECORD_V2;
 }
 
 size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, const WcCensus *c) {
@@ -84,6 +91,9 @@ size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, con
             }
             p += WC_SSID_SLOT;
         }
+        put_u32(p, d->ie_hash); // v2 fields
+        p += 4;
+        *p++ = (uint8_t)d->ie_vendor;
     }
     return need;
 }
@@ -97,7 +107,8 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
         return false;
     }
     p += 4;
-    if (get_u16(p) != WC_CAP_VERSION) {
+    uint16_t version = get_u16(p);
+    if (version < 1 || version > WC_CAP_VERSION) {
         return false;
     }
     p += 2;
@@ -120,7 +131,7 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
         return false;
     }
     // The declared count must account for the buffer exactly — no truncation, no trailer.
-    if (len != (size_t)WC_HEADER_SIZE + (size_t)count * WC_RECORD_SIZE) {
+    if (len != (size_t)WC_HEADER_SIZE + (size_t)count * record_size(version)) {
         return false;
     }
 
@@ -149,6 +160,11 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
             d->ssids[s][WC_SSID_MAX_LEN] = '\0';
             p += WC_SSID_SLOT;
         }
+        if (version >= 2) {
+            d->ie_hash = get_u32(p);
+            p += 4;
+            d->ie_vendor = (WcVendor)*p++;
+        }
     }
     c->count = count;
     return true;
@@ -175,13 +191,15 @@ size_t wc_capture_to_csv(char *out, size_t cap, const WcCaptureMeta *meta, const
     }
     csv_appendf(out, cap, &len, "# label=%s epoch=%lu duration_s=%lu\n", meta->label,
                 (unsigned long)meta->epoch, (unsigned long)meta->duration_s);
-    csv_appendf(out, cap, &len,
-                "mac,random,type,vendor,rssi_max,obs_count,first_seen,last_seen,ssids\n");
+    csv_appendf(
+        out, cap, &len,
+        "mac,random,type,vendor,fingerprint,rssi_max,obs_count,first_seen,last_seen,ssids\n");
     for (uint16_t i = 0; i < c->count; i++) {
         const WcSignature *d = &c->devices[i];
-        csv_appendf(out, cap, &len, "%02X:%02X:%02X:%02X:%02X:%02X,%d,%s,%s,%d,%lu,%lu,%lu,\"",
-                    d->mac[0], d->mac[1], d->mac[2], d->mac[3], d->mac[4], d->mac[5],
-                    d->mac_random ? 1 : 0, wc_device_type_name(d->type), wc_oui_vendor_name(d->mac),
+        csv_appendf(out, cap, &len,
+                    "%02X:%02X:%02X:%02X:%02X:%02X,%d,%s,%s,%08lx,%d,%lu,%lu,%lu,\"", d->mac[0],
+                    d->mac[1], d->mac[2], d->mac[3], d->mac[4], d->mac[5], d->mac_random ? 1 : 0,
+                    wc_device_type_name(d->type), wc_signature_vendor(d), (unsigned long)d->ie_hash,
                     d->rssi_max, (unsigned long)d->obs_count, (unsigned long)d->first_seen,
                     (unsigned long)d->last_seen);
         for (uint8_t s = 0; s < d->ssid_count; s++) {

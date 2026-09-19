@@ -356,7 +356,7 @@ void wc_scene_devices_on_enter(void *context) {
     uint16_t n = c ? c->count : 0;
     for (uint16_t i = 0; i < n && i < WC_MAX_LIST; i++) {
         const WcSignature *d = &c->devices[i];
-        const char *vendor = wc_oui_vendor_name(d->mac);
+        const char *vendor = wc_signature_vendor(d);
         char label[64];
         snprintf(label, sizeof(label), "%s%s%s %02X:%02X:%02X:%02X:%02X:%02X",
                  wc_device_type_name(d->type), vendor[0] ? " " : "", vendor, d->mac[0], d->mac[1],

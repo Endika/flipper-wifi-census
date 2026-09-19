@@ -21,6 +21,12 @@ tool has to be clear about its limits:
   phones keep a stable MAC *per network*, so it matches in both places).
 - Capture is **passive only**: it reads the management frames devices broadcast in the
   clear. No deauth, no injection, no association, no decryption.
+- Imported captures (see below) also carry an **IE fingerprint** and a **vendor hint from
+  vendor-specific IEs** — which can name a maker (Apple / Qualcomm / Broadcom …) *even for a
+  randomized MAC*. The fingerprint groups devices that look like the **same model**, not the
+  same unit, so it is shown for insight but is **not** used to merge devices or cross-match
+  captures (those stay on the reliable stable-MAC / probed-SSID signals) — that would
+  under-count identical models or invent matches between strangers.
 
 Use it on your own space and people who are fine with it. The probed network names it can
 record are sensitive (they hint at where someone lives, works or travels), which is exactly

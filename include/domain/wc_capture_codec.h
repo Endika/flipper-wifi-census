@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 #define WC_LABEL_MAX 32
-#define WC_CAP_VERSION 1
+#define WC_CAP_VERSION 2
 
 // Capture metadata written alongside the device records. `channels_mask` has bit (ch-1) set
 // for each 2.4 GHz channel scanned (1..14); `mode` is reserved (0 = census).
