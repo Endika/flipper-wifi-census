@@ -14,6 +14,7 @@ typedef struct {
     uint16_t count;
     uint16_t capacity;
     uint16_t dropped; // observations discarded at the ceiling / on allocation failure
+    uint16_t max; // per-census ceiling (WC_CENSUS_MAX_DEVICES on the Flipper; higher off-device)
 } WcCensus;
 
 typedef struct {
@@ -37,6 +38,11 @@ typedef struct {
 uint16_t wc_census_ssid_tally(const WcCensus *c, WcSsidTally *out, uint16_t cap);
 
 void wc_census_init(WcCensus *c);
+
+// Raise (or lower) this census's device ceiling. Default after init is WC_CENSUS_MAX_DEVICES,
+// which suits the Flipper's RAM; an off-device tool (e.g. merging many captures on a PC) can
+// set it much higher. Call right after wc_census_init, before adding devices.
+void wc_census_set_max(WcCensus *c, uint16_t max);
 
 // Release the device array. Safe to call on a zeroed/empty census; leaves it re-init'd.
 void wc_census_free(WcCensus *c);

@@ -84,8 +84,22 @@ airodump) can be turned into a census, on the Flipper or on a laptop:
   It prints the same CSV the app writes (mac, random, type, vendor, networks sought, …) and a
   one-line summary on stderr. Handy when you have the pcap but not the Flipper.
 - **On the Flipper** — drop the `.pcap` into `/ext/apps_data/flipper_wifi_census/` and use
-  **Import pcap** in the menu (on-device import reads files up to 64 KB; use the PC tool for
+  **Import pcap** in the menu (on-device import reads files up to 40 KB; use the PC tool for
   larger ones).
+
+## Combine many captures on a PC (beyond the device limit)
+
+A single Flipper scan or merge is capped at 320 devices (its RAM). To census a huge venue,
+capture it as several files and merge them all on a laptop, where there is no such cap:
+
+```sh
+make tool
+./wc_merge part1.wcen part2.wcen scan.pcap ... > all.csv
+```
+
+`wc_merge` deduplicates across every file (a device seen in two of them is counted once) and
+accepts `.wcen` captures and `.pcap` files mixed, producing one CSV of the whole venue —
+thousands of devices if needed.
 
 ## Building
 

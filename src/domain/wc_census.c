@@ -8,6 +8,12 @@ void wc_census_init(WcCensus *c) {
     c->count = 0;
     c->capacity = 0;
     c->dropped = 0;
+    c->max = WC_CENSUS_MAX_DEVICES;
+}
+
+// cppcheck-suppress unusedFunction // used by the off-device tools (not in the FAP link set)
+void wc_census_set_max(WcCensus *c, uint16_t max) {
+    c->max = max;
 }
 
 void wc_census_free(WcCensus *c) {
@@ -20,12 +26,12 @@ static bool ensure_one(WcCensus *c) {
     if (c->count < c->capacity) {
         return true;
     }
-    if (c->capacity >= WC_CENSUS_MAX_DEVICES) {
+    if (c->capacity >= c->max) {
         return false;
     }
     uint16_t newcap = c->capacity + WC_CENSUS_GROW;
-    if (newcap > WC_CENSUS_MAX_DEVICES) {
-        newcap = WC_CENSUS_MAX_DEVICES;
+    if (newcap > c->max) {
+        newcap = c->max;
     }
     WcSignature *nd = realloc(c->devices, (size_t)newcap * sizeof(WcSignature));
     if (!nd) {
@@ -46,8 +52,8 @@ WcSignature *wc_census_add(WcCensus *c, const WcSignature *sig) {
 }
 
 bool wc_census_reserve(WcCensus *c, uint16_t n) {
-    if (n > WC_CENSUS_MAX_DEVICES) {
-        n = WC_CENSUS_MAX_DEVICES;
+    if (n > c->max) {
+        n = c->max;
     }
     if (n <= c->capacity) {
         return true;

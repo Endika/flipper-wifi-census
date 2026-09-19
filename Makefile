@@ -263,10 +263,11 @@ fap: prepare clean_firmware clean
 		cd $(FLIPPER_FIRMWARE_PATH) && ./fbt fap_$(FAP_APPID); \
 	fi
 
-TOOL_SRCS = tools/wc_import.c src/domain/wc_pcap_reader.c src/domain/wc_probe_frame.c src/domain/wc_observation.c src/domain/wc_signature.c src/domain/wc_census.c src/domain/wc_capture_codec.c
+TOOL_DOMAIN = src/domain/wc_pcap_reader.c src/domain/wc_probe_frame.c src/domain/wc_observation.c src/domain/wc_signature.c src/domain/wc_census.c src/domain/wc_capture_codec.c
 
 tool:
-	$(CC) $(CFLAGS) -o wc_import $(TOOL_SRCS)
+	$(CC) $(CFLAGS) -o wc_import tools/wc_import.c $(TOOL_DOMAIN)
+	$(CC) $(CFLAGS) -o wc_merge tools/wc_merge.c $(TOOL_DOMAIN)
 
 clean:
-	rm -f *.o tests/*.o $(TEST_BINS) wc_import
+	rm -f *.o tests/*.o $(TEST_BINS) wc_import wc_merge

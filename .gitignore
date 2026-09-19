@@ -6,3 +6,4 @@ local.mk
 dist/
 .vscode/
 wc_import
+wc_merge
