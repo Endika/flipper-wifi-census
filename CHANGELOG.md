@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.16](https://github.com/Endika/flipper-wifi-census/compare/v0.1.15...v0.1.16) (2026-09-19)
+
+
+### Bug Fixes
+
+* parse Marauder v1.17 probe lines (bare RSSI, Ch, Client, Requesting SSID) ([776dc4a](https://github.com/Endika/flipper-wifi-census/commit/776dc4a16eeb2cd7fbc1a25d170176c655c96909))
+
 ## [0.1.15](https://github.com/Endika/flipper-wifi-census/compare/v0.1.14...v0.1.15) (2026-09-19)
 
 
