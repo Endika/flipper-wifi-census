@@ -154,13 +154,19 @@ static void scan_timer_cb(void *context) {
 
 static void scan_render(WcApp *app) {
     WcCensusStats s = wc_scan_stats(&app->scan);
+    char tail[32];
+    if (app->scan.census.dropped > 0) {
+        snprintf(tail, sizeof(tail), "FULL +%u dropped", app->scan.census.dropped);
+    } else {
+        snprintf(tail, sizeof(tail), "Back = stop & save");
+    }
     char buf[256];
     snprintf(
         buf, sizeof(buf),
         "Scanning 2.4GHz...\nUnique: %u (stable %u)\nRandom: %u (%u%%)\nPhone %u Lap %u IoT %u\n"
-        "Networks sought: %u\nBack = stop & save",
+        "Networks sought: %u\n%s",
         s.total, s.unique_stable, s.random_count, s.pct_random, s.by_type[WcDevicePhone],
-        s.by_type[WcDeviceLaptop], s.by_type[WcDeviceIot], s.networks);
+        s.by_type[WcDeviceLaptop], s.by_type[WcDeviceIot], s.networks, tail);
     widget_reset(app->widget);
     widget_add_string_multiline_element(app->widget, 0, 0, AlignLeft, AlignTop, FontSecondary, buf);
 }
@@ -640,7 +646,7 @@ void wc_scene_merge_b_on_exit(void *context) {
 
 void wc_scene_merge_name_on_enter(void *context) {
     WcApp *app = context;
-    wc_default_capture_name(wc_clock_now(&app->clock), app->text_buf, sizeof(app->text_buf));
+    wc_default_name(wc_clock_now(&app->clock), "merge", app->text_buf, sizeof(app->text_buf));
     text_input_reset(app->text_input);
     text_input_set_header_text(app->text_input, "Merged name");
     text_input_set_result_callback(app->text_input, wc_text_input_cb, app, app->text_buf,

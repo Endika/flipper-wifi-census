@@ -17,7 +17,7 @@ static void civil_from_days(int64_t z, int *y, unsigned *m, unsigned *d) {
     *y = year + (*m <= 2);
 }
 
-void wc_default_capture_name(uint32_t epoch, char *out, size_t cap) {
+void wc_default_name(uint32_t epoch, const char *prefix, char *out, size_t cap) {
     int64_t days = (int64_t)(epoch / 86400u);
     uint32_t rem = epoch % 86400u;
     unsigned hh = rem / 3600u;
@@ -25,5 +25,9 @@ void wc_default_capture_name(uint32_t epoch, char *out, size_t cap) {
     int y;
     unsigned mo, d;
     civil_from_days(days, &y, &mo, &d);
-    snprintf(out, cap, "cap_%04d%02u%02u_%02u%02u", y, mo, d, hh, mm);
+    snprintf(out, cap, "%s_%04d%02u%02u_%02u%02u", prefix, y, mo, d, hh, mm);
+}
+
+void wc_default_capture_name(uint32_t epoch, char *out, size_t cap) {
+    wc_default_name(epoch, "cap", out, cap);
 }
