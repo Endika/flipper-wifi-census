@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13](https://github.com/Endika/flipper-wifi-census/compare/v0.1.12...v0.1.13) (2026-09-19)
+
+
+### Features
+
+* auto-save rotation option to capture huge venues across files ([f9c482e](https://github.com/Endika/flipper-wifi-census/commit/f9c482e11202a6cbab7df0e3942ac544489698b7))
+
 ## [0.1.12](https://github.com/Endika/flipper-wifi-census/compare/v0.1.11...v0.1.12) (2026-09-19)
 
 
