@@ -9,21 +9,26 @@
 
 bool wc_known_service_load(const WcStorePort *store, WcKnownDb *db) {
     wc_known_init(db);
-    uint8_t buf[WC_KNOWN_MAX_BYTES];
-    size_t n = store->read_file(store->self, WC_KNOWN_FILE, buf, sizeof(buf));
-    if (n == 0) {
-        return true; // no file yet: an empty registry is valid
+    // Heap, not stack: WC_KNOWN_MAX_BYTES (~4 KB) would blow the FAP's 4 KB stack.
+    uint8_t *buf = malloc(WC_KNOWN_MAX_BYTES);
+    if (!buf) {
+        return false;
     }
-    return wc_known_read(db, buf, n);
+    size_t n = store->read_file(store->self, WC_KNOWN_FILE, buf, WC_KNOWN_MAX_BYTES);
+    bool ok = (n == 0) ? true : wc_known_read(db, buf, n);
+    free(buf);
+    return ok;
 }
 
 bool wc_known_service_save(const WcStorePort *store, const WcKnownDb *db) {
-    uint8_t buf[WC_KNOWN_MAX_BYTES];
-    size_t n = wc_known_write(buf, sizeof(buf), db);
-    if (n == 0) {
+    uint8_t *buf = malloc(WC_KNOWN_MAX_BYTES);
+    if (!buf) {
         return false;
     }
-    return store->write_file(store->self, WC_KNOWN_FILE, buf, n);
+    size_t n = wc_known_write(buf, WC_KNOWN_MAX_BYTES, db);
+    bool ok = (n > 0) && store->write_file(store->self, WC_KNOWN_FILE, buf, n);
+    free(buf);
+    return ok;
 }
 
 bool wc_known_service_mark(const WcStorePort *store, const WcSignature *sig, const char *label) {
