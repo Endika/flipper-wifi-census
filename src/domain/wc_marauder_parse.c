@@ -85,26 +85,8 @@ static void copy_quoted(const char *q, char *out) {
     out[n] = '\0';
 }
 
-// Extract a directed SSID into out (max WC_SSID_MAX_LEN). Tries an "SSID" label first; if that
-// isn't present, falls back to the first double-quoted string on the line (how several Marauder
-// builds print the probed network). Leaves out[0]=0 when absent/empty (a wildcard probe).
-static void extract_ssid(const char *buf, char *out) {
-    out[0] = '\0';
-    const char *p = strstr(buf, "SSID");
-    if (!p) {
-        const char *q = strchr(buf, '"');
-        if (q) {
-            copy_quoted(q, out);
-        }
-        return;
-    }
-    p += 4;
-    while (*p == ':' || *p == '=' || *p == ' ')
-        p++;
-    if (*p == '"') {
-        copy_quoted(p, out);
-        return;
-    }
+// Copy the rest of an unquoted value (until CR/LF/end) into out, trimming trailing spaces.
+static void copy_unquoted(const char *p, char *out) {
     size_t n = 0;
     while (*p && n < WC_SSID_MAX_LEN) {
         if (*p == '\r' || *p == '\n') {
@@ -112,11 +94,45 @@ static void extract_ssid(const char *buf, char *out) {
         }
         out[n++] = *p++;
     }
-    // Trim trailing spaces from an unquoted SSID.
     while (n > 0 && out[n - 1] == ' ') {
         n--;
     }
     out[n] = '\0';
+}
+
+// Return a pointer just past `label` and any following separators (: = space), or NULL if the
+// label is not present in buf.
+static const char *value_after_label(const char *buf, const char *label) {
+    const char *p = strstr(buf, label);
+    if (!p)
+        return NULL;
+    p += strlen(label);
+    while (*p == ':' || *p == '=' || *p == ' ')
+        p++;
+    return p;
+}
+
+// Extract a directed SSID into out (max WC_SSID_MAX_LEN). Marauder v1.17 probe-sniff prints the
+// probed network after a "Requesting:" label; other builds/paths use an "SSID" label, and some
+// quote the name. Tries each in turn, then a bare quoted string. Leaves out[0]=0 when the value
+// is absent or empty (a wildcard probe).
+static void extract_ssid(const char *buf, char *out) {
+    out[0] = '\0';
+    const char *p = value_after_label(buf, "SSID");
+    if (!p)
+        p = value_after_label(buf, "Requesting");
+    if (!p) {
+        const char *q = strchr(buf, '"');
+        if (q) {
+            copy_quoted(q, out);
+        }
+        return;
+    }
+    if (*p == '"') {
+        copy_quoted(p, out);
+        return;
+    }
+    copy_unquoted(p, out);
 }
 
 bool wc_parse_summary_line(const char *line, size_t len, WcObservation *out) {
@@ -134,9 +150,26 @@ bool wc_parse_summary_line(const char *line, size_t len, WcObservation *out) {
     int rssi = 0;
     if (int_after(buf, "RSSI", &rssi)) {
         out->rssi = clamp_i8(rssi);
+    } else {
+        // Marauder v1.17 probe lines have no "RSSI" label: they begin with the RSSI as a bare
+        // signed dBm value (e.g. "-86 Ch: 1 ..."). Read a leading "-<digits>" if present.
+        const char *p = buf;
+        while (*p == ' ')
+            p++;
+        if (*p == '-' && p[1] >= '0' && p[1] <= '9') {
+            p++;
+            int v = 0, digits = 0;
+            while (*p >= '0' && *p <= '9' && digits < 6) {
+                v = v * 10 + (*p - '0');
+                p++;
+                digits++;
+            }
+            out->rssi = clamp_i8(-v);
+        }
     }
     int ch = 0;
-    if (int_after(buf, "CH", &ch)) {
+    // Accept both "CH" (older labeled output) and Marauder v1.17's "Ch".
+    if (int_after(buf, "CH", &ch) || int_after(buf, "Ch", &ch)) {
         if (ch < 0)
             ch = 0;
         if (ch > 14)

@@ -100,8 +100,48 @@ static void test_quoted_ssid_without_label(void) {
     assert(strcmp(o.probed_ssid, "HomeNet") == 0);
 }
 
+// The three cases below are verbatim lines captured from a real ESP32 Marauder v1.17 running
+// `sniffprobe`: "<-RSSI> Ch: <n> Client: <MAC> Requesting: <SSID>". RSSI is a bare leading
+// value, the channel label is "Ch", the MAC is under "Client:", and the probed network follows
+// "Requesting:" (empty for a wildcard probe).
+static void test_marauder_v117_requesting_directed(void) {
+    WcObservation o;
+    assert(parse("-86 Ch: 1 Client: c0:38:96:31:db:b7 Requesting: Xiaomi 15T Pro", &o));
+    const uint8_t expect[6] = {0xC0, 0x38, 0x96, 0x31, 0xDB, 0xB7};
+    assert(memcmp(o.mac, expect, 6) == 0);
+    assert(o.rssi == -86);
+    assert(o.channel == 1);
+    assert(strcmp(o.probed_ssid, "Xiaomi 15T Pro") == 0);
+    assert(!o.is_beacon);
+}
+
+static void test_marauder_v117_wildcard_empty_requesting(void) {
+    WcObservation o;
+    assert(parse("-91 Ch: 1 Client: 96:8d:49:fc:e9:5f Requesting:", &o));
+    const uint8_t expect[6] = {0x96, 0x8D, 0x49, 0xFC, 0xE9, 0x5F};
+    assert(memcmp(o.mac, expect, 6) == 0);
+    assert(o.rssi == -91);
+    assert(o.channel == 1);
+    assert(o.mac_random); // 0x96 has the locally-administered bit set
+    assert(o.probed_ssid[0] == '\0');
+}
+
+static void test_marauder_v117_directed_underscore_ssid(void) {
+    WcObservation o;
+    assert(parse("-74 Ch: 1 Client: 7c:2e:bd:67:e8:bf Requesting: REDWIFI_Az3t", &o));
+    const uint8_t expect[6] = {0x7C, 0x2E, 0xBD, 0x67, 0xE8, 0xBF};
+    assert(memcmp(o.mac, expect, 6) == 0);
+    assert(o.rssi == -74);
+    assert(o.channel == 1);
+    assert(!o.mac_random);
+    assert(strcmp(o.probed_ssid, "REDWIFI_Az3t") == 0);
+}
+
 int main(void) {
     test_full_labeled_line();
+    test_marauder_v117_requesting_directed();
+    test_marauder_v117_wildcard_empty_requesting();
+    test_marauder_v117_directed_underscore_ssid();
     test_quoted_ssid_without_label();
     test_long_digit_run_does_not_overflow();
     test_wildcard_probe_random_mac();
