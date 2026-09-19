@@ -32,13 +32,17 @@ OBJS_SMOKE = wc_version_info.o test_smoke.o
 OBJS_SIGNATURE = wc_observation.o wc_signature.o test_signature.o
 OBJS_CENSUS = wc_observation.o wc_signature.o wc_census.o test_census.o
 OBJS_CODEC = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o test_codec.o
-TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec
+OBJS_COMPARE = wc_observation.o wc_signature.o wc_census.o wc_compare.o test_compare.o
+OBJS_KNOWN = wc_observation.o wc_signature.o wc_known.o test_known.o
+TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec test_wc_compare test_wc_known
 
 test: $(TEST_BINS)
 	./test_wc_smoke
 	./test_wc_signature
 	./test_wc_census
 	./test_wc_codec
+	./test_wc_compare
+	./test_wc_known
 
 test_wc_smoke: $(OBJS_SMOKE)
 	$(CC) $(CFLAGS) -o test_wc_smoke $(OBJS_SMOKE)
@@ -51,6 +55,12 @@ test_wc_census: $(OBJS_CENSUS)
 
 test_wc_codec: $(OBJS_CODEC)
 	$(CC) $(CFLAGS) -o test_wc_codec $(OBJS_CODEC)
+
+test_wc_compare: $(OBJS_COMPARE)
+	$(CC) $(CFLAGS) -o test_wc_compare $(OBJS_COMPARE)
+
+test_wc_known: $(OBJS_KNOWN)
+	$(CC) $(CFLAGS) -o test_wc_known $(OBJS_KNOWN)
 
 wc_version_info.o: src/domain/wc_version_info.c include/domain/wc_version_info.h include/version.h
 	$(CC) $(CFLAGS) -c src/domain/wc_version_info.c -o wc_version_info.o
@@ -79,6 +89,18 @@ wc_capture_codec.o: src/domain/wc_capture_codec.c include/domain/wc_capture_code
 test_codec.o: tests/test_codec.c include/domain/wc_capture_codec.h include/domain/wc_census.h
 	$(CC) $(CFLAGS) -c tests/test_codec.c -o test_codec.o
 
+wc_compare.o: src/domain/wc_compare.c include/domain/wc_compare.h include/domain/wc_census.h
+	$(CC) $(CFLAGS) -c src/domain/wc_compare.c -o wc_compare.o
+
+test_compare.o: tests/test_compare.c include/domain/wc_compare.h include/domain/wc_census.h include/domain/wc_observation.h
+	$(CC) $(CFLAGS) -c tests/test_compare.c -o test_compare.o
+
+wc_known.o: src/domain/wc_known.c include/domain/wc_known.h include/domain/wc_signature.h
+	$(CC) $(CFLAGS) -c src/domain/wc_known.c -o wc_known.o
+
+test_known.o: tests/test_known.c include/domain/wc_known.h include/domain/wc_signature.h
+	$(CC) $(CFLAGS) -c tests/test_known.c -o test_known.o
+
 # --- format / lint ---
 FORMAT_FILES := $(shell git ls-files '*.c' '*.h' 2>/dev/null)
 ifeq ($(strip $(FORMAT_FILES)),)
@@ -106,10 +128,14 @@ linter:
 		src/domain/wc_signature.c \
 		src/domain/wc_census.c \
 		src/domain/wc_capture_codec.c \
+		src/domain/wc_compare.c \
+		src/domain/wc_known.c \
 		tests/test_smoke.c \
 		tests/test_signature.c \
 		tests/test_census.c \
-		tests/test_codec.c
+		tests/test_codec.c \
+		tests/test_compare.c \
+		tests/test_known.c
 
 # --- build the .fap via the firmware tree (ufbt/fbt; not available in this sandbox) ---
 prepare:
