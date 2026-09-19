@@ -162,6 +162,7 @@ format-check:
 linter:
 	cppcheck --enable=all --inline-suppr --error-exitcode=1 -I. \
 		--suppress=missingIncludeSystem \
+		--suppress=unmatchedSuppression \
 		--suppress=unusedFunction:main.c \
 		--suppress=checkersReport \
 		--suppress=normalCheckLevelMaxBranches \
