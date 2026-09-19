@@ -74,33 +74,47 @@ static int8_t clamp_i8(int v) {
     return (int8_t)v;
 }
 
-// Extract a directed SSID after an "SSID" label into out (max WC_SSID_MAX_LEN). Surrounding
-// double quotes are stripped. Leaves out[0]=0 when absent or empty (a wildcard probe).
+// Copy a quoted string ("...") starting at `q` (which points at the opening quote) into out.
+static void copy_quoted(const char *q, char *out) {
+    out[0] = '\0';
+    const char *p = q + 1;
+    size_t n = 0;
+    while (*p && *p != '"' && n < WC_SSID_MAX_LEN) {
+        out[n++] = *p++;
+    }
+    out[n] = '\0';
+}
+
+// Extract a directed SSID into out (max WC_SSID_MAX_LEN). Tries an "SSID" label first; if that
+// isn't present, falls back to the first double-quoted string on the line (how several Marauder
+// builds print the probed network). Leaves out[0]=0 when absent/empty (a wildcard probe).
 static void extract_ssid(const char *buf, char *out) {
     out[0] = '\0';
     const char *p = strstr(buf, "SSID");
-    if (!p)
+    if (!p) {
+        const char *q = strchr(buf, '"');
+        if (q) {
+            copy_quoted(q, out);
+        }
         return;
+    }
     p += 4;
     while (*p == ':' || *p == '=' || *p == ' ')
         p++;
-    bool quoted = false;
     if (*p == '"') {
-        quoted = true;
-        p++;
+        copy_quoted(p, out);
+        return;
     }
     size_t n = 0;
     while (*p && n < WC_SSID_MAX_LEN) {
-        if (quoted && *p == '"')
+        if (*p == '\r' || *p == '\n') {
             break;
-        if (!quoted && (*p == '\r' || *p == '\n'))
-            break;
+        }
         out[n++] = *p++;
     }
     // Trim trailing spaces from an unquoted SSID.
-    if (!quoted) {
-        while (n > 0 && out[n - 1] == ' ')
-            n--;
+    while (n > 0 && out[n - 1] == ' ') {
+        n--;
     }
     out[n] = '\0';
 }

@@ -93,8 +93,16 @@ static void test_long_digit_run_does_not_overflow(void) {
     assert(o.rssi == 127); // clamped, no UB
 }
 
+static void test_quoted_ssid_without_label(void) {
+    // Some Marauder builds print the probed network in quotes with no "SSID" token.
+    WcObservation o;
+    assert(parse("RSSI: -50 CH: 6 AA:BB:CC:DD:EE:FF -> \"HomeNet\"", &o));
+    assert(strcmp(o.probed_ssid, "HomeNet") == 0);
+}
+
 int main(void) {
     test_full_labeled_line();
+    test_quoted_ssid_without_label();
     test_long_digit_run_does_not_overflow();
     test_wildcard_probe_random_mac();
     test_quoted_ssid_with_space();
