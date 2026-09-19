@@ -2,7 +2,7 @@
 
 #include "include/domain/wc_observation.h"
 
-#define WC_SIG_MAX_SSIDS 4 // directed SSIDs kept per device (bounds Flipper RAM)
+#define WC_SIG_MAX_SSIDS 2 // directed SSIDs kept per device (bounds Flipper RAM)
 
 // A device as accumulated over a scan session: identity plus the signals gathered about it.
 typedef struct {

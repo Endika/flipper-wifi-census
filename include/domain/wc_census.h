@@ -3,7 +3,7 @@
 #include "include/domain/wc_observation.h"
 #include "include/domain/wc_signature.h"
 
-#define WC_CENSUS_MAX_DEVICES 300 // safety ceiling; memory scales with the actual device count
+#define WC_CENSUS_MAX_DEVICES 250 // safety ceiling (bounds FAP heap; scan/merge hold this much)
 #define WC_CENSUS_GROW 16         // device-array growth chunk
 
 // The set of unique devices seen over one scan session. The device array grows on demand
@@ -44,6 +44,11 @@ void wc_census_free(WcCensus *c);
 // Append a copy of `sig` (growing the array). Returns the stored signature, or NULL at the
 // ceiling / on allocation failure (bumps dropped). Used by the codec and tests.
 WcSignature *wc_census_add(WcCensus *c, const WcSignature *sig);
+
+// Pre-allocate room for `n` devices (capped at the ceiling) in one shot. Doing this before a
+// scan or a load avoids repeated realloc growth — which transiently needs ~2x the array and
+// can exhaust the FAP heap on a busy scan. Returns false on allocation failure.
+bool wc_census_reserve(WcCensus *c, uint16_t n);
 
 // Fold one observation into the census, deduping into an existing device or adding a new
 // one. Dedup rules, in order:

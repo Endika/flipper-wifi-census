@@ -89,15 +89,19 @@ static void test_signature_from_and_merge(void) {
 
 static void test_signature_ssid_cap(void) {
     uint8_t mac[6] = {0x24, 0x0A, 0xC4, 9, 9, 9};
-    WcObservation o = obs_of(mac, -60, "A", false);
+    WcObservation o = obs_of(mac, -60, "net0", false); // from_obs records the first SSID
     WcSignature sig;
     wc_signature_from_obs(&sig, &o, 0);
-    assert(wc_signature_add_ssid(&sig, "B"));
-    assert(wc_signature_add_ssid(&sig, "C"));
-    assert(wc_signature_add_ssid(&sig, "D"));
+    assert(sig.ssid_count == 1);
+    // Fill the rest of the slots, then confirm further adds are rejected.
+    char name[8];
+    for (int i = 1; i < WC_SIG_MAX_SSIDS; i++) {
+        snprintf(name, sizeof(name), "net%d", i);
+        assert(wc_signature_add_ssid(&sig, name));
+    }
     assert(sig.ssid_count == WC_SIG_MAX_SSIDS);
-    assert(!wc_signature_add_ssid(&sig, "E")); // full
-    assert(!wc_signature_add_ssid(&sig, ""));  // empty ignored
+    assert(!wc_signature_add_ssid(&sig, "overflow")); // full
+    assert(!wc_signature_add_ssid(&sig, ""));         // empty ignored
 }
 
 int main(void) {

@@ -148,6 +148,7 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
     }
 
     wc_census_init(c);
+    wc_census_reserve(c, count); // one allocation for the whole file (no realloc growth)
     for (uint16_t i = 0; i < count; i++) {
         WcSignature d;
         memset(&d, 0, sizeof(d));

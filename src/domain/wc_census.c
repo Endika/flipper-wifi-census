@@ -45,6 +45,22 @@ WcSignature *wc_census_add(WcCensus *c, const WcSignature *sig) {
     return &c->devices[c->count++];
 }
 
+bool wc_census_reserve(WcCensus *c, uint16_t n) {
+    if (n > WC_CENSUS_MAX_DEVICES) {
+        n = WC_CENSUS_MAX_DEVICES;
+    }
+    if (n <= c->capacity) {
+        return true;
+    }
+    WcSignature *nd = realloc(c->devices, (size_t)n * sizeof(WcSignature));
+    if (!nd) {
+        return false;
+    }
+    c->devices = nd;
+    c->capacity = n;
+    return true;
+}
+
 static WcSignature *find_by_mac(WcCensus *c, const uint8_t mac[6]) {
     for (uint16_t i = 0; i < c->count; i++) {
         if (memcmp(c->devices[i].mac, mac, 6) == 0) {
@@ -172,6 +188,8 @@ static WcSignature *find_merge_target(WcCensus *dst, const WcSignature *sd) {
 }
 
 void wc_census_merge(WcCensus *dst, const WcCensus *src) {
+    // Reserve once for the worst case so appends below never trigger realloc growth spikes.
+    wc_census_reserve(dst, (uint16_t)(dst->count + src->count));
     for (uint16_t i = 0; i < src->count; i++) {
         const WcSignature *sd = &src->devices[i];
         WcSignature *m = find_merge_target(dst, sd);

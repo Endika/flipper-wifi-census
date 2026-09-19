@@ -175,6 +175,9 @@ void wc_scene_scan_on_enter(void *context) {
     WcApp *app = context;
     wc_census_free(&app->scan.census); // release any prior scan before a new one
     wc_scan_init(&app->scan, app->clock);
+    // Reserve the whole array up front: a busy scan then never reallocs (whose transient 2x
+    // copy is what exhausted the heap and rebooted the Flipper mid-scan).
+    wc_census_reserve(&app->scan.census, WC_CENSUS_MAX_DEVICES);
     app->scan_started = wc_clock_now(&app->clock);
 
     app->serial = wc_serial_furi_alloc(app->baud);
