@@ -3,7 +3,8 @@
 #include "include/domain/wc_observation.h"
 #include "include/domain/wc_signature.h"
 
-#define WC_CENSUS_MAX_DEVICES 128 // heap-held table; bounds memory in a busy environment
+#define WC_CENSUS_MAX_DEVICES                                                                      \
+    80 // heap-held; kept modest so merge/compare/import stay within FAP heap
 
 // The set of unique devices built up over one scan session.
 typedef struct {

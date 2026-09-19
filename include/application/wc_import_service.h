@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 
-#define WC_IMPORT_MAX_BYTES (64 * 1024) // largest pcap the on-device import will read
+#define WC_IMPORT_MAX_BYTES (40 * 1024) // on-device import cap; larger pcaps -> use the PC tool
 
 // Read a raw-802.11 (linktype 105) pcap file `pcap_name` from storage, build a census from
 // its probe requests, and save it as "<out_basename>.wcen" (+ .csv). Returns false if the

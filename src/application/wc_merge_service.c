@@ -24,6 +24,8 @@ bool wc_merge_service_run(const WcStorePort *store, const char *name_a, const ch
         if (wc_capture_service_load(store, name_a, &ma, a) &&
             wc_capture_service_load(store, name_b, &mb, b)) {
             wc_census_merge(a, b);
+            free(b); // b is folded into a; free it before the (allocating) save to cut peak RAM
+            b = NULL;
 
             WcCaptureMeta out;
             memset(&out, 0, sizeof(out));
