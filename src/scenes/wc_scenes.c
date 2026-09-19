@@ -1,6 +1,7 @@
 #include "include/app/wc_app.h"
 #include "include/application/wc_files.h"
 #include "include/domain/wc_observation.h"
+#include "include/domain/wc_version_info.h"
 #include "include/scenes/wc_scene.h"
 
 #include <furi.h>
@@ -597,15 +598,17 @@ void wc_scene_settings_on_exit(void *context) {
 
 void wc_scene_about_on_enter(void *context) {
     WcApp *app = context;
+    snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
+             "WiFi Census\nv%s  by Endika\ngithub.com/Endika/flipper-wifi-census\n\n"
+             "Passive 2.4GHz device census via an ESP32 Marauder board. Counts and types nearby "
+             "devices, saves each scan, and compares captures across places.\n\n"
+             "Honest limits: stable-MAC gear and devices probing a named network cross reliably; "
+             "modern phones randomize their MAC and are counted but not crossable (use Known "
+             "devices).\n\nPassive only. Everything stays on the SD card.",
+             wc_version());
     text_box_reset(app->text_box);
     text_box_set_font(app->text_box, TextBoxFontText);
-    text_box_set_text(
-        app->text_box,
-        "WiFi Census\n\nPassive 2.4GHz device census via an ESP32 Marauder board. Counts and "
-        "types nearby devices, saves each scan, and compares captures across places.\n\n"
-        "Honest limits: stable-MAC gear and devices probing a named network cross reliably; "
-        "modern phones randomize their MAC and are counted but not crossable (use Known "
-        "devices).\n\nPassive only. Everything stays on the SD card.");
+    text_box_set_text(app->text_box, app->result_text);
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewTextBox);
 }
 
