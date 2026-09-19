@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/Endika/flipper-wifi-census/compare/v0.1.7...v0.1.8) (2026-09-19)
+
+
+### Bug Fixes
+
+* stream capture save to avoid the double-buffer OOM (merge/scan reboot) ([b634ff4](https://github.com/Endika/flipper-wifi-census/commit/b634ff48e5178ba8693438c9f2e1c8fbb6ccb6ef))
+
 ## [0.1.7](https://github.com/Endika/flipper-wifi-census/compare/v0.1.6...v0.1.7) (2026-09-19)
 
 
