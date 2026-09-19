@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/Endika/flipper-wifi-census/compare/v0.1.10...v0.1.11) (2026-09-19)
+
+
+### Features
+
+* raise census ceiling to 320 devices for denser venues ([b0a8f67](https://github.com/Endika/flipper-wifi-census/commit/b0a8f671ede5c3ebec670b839c1545b8346610f3))
+
 ## [0.1.10](https://github.com/Endika/flipper-wifi-census/compare/v0.1.9...v0.1.10) (2026-09-19)
 
 
