@@ -36,6 +36,10 @@ size_t wc_capture_size(const WcCensus *c) {
     return WC_HEADER_SIZE + (size_t)c->count * WC_RECORD_SIZE;
 }
 
+size_t wc_capture_max_size(void) {
+    return WC_HEADER_SIZE + (size_t)WC_CENSUS_MAX_DEVICES * WC_RECORD_SIZE;
+}
+
 size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, const WcCensus *c) {
     size_t need = wc_capture_size(c);
     if (cap < need) {

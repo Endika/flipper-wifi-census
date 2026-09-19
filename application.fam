@@ -24,5 +24,9 @@ App(
         "src/platform/wc_clock_furi.c",
         "src/platform/wc_store_furi.c",
         "src/platform/wc_serial_furi.c",
+        "src/application/wc_scan_service.c",
+        "src/application/wc_capture_service.c",
+        "src/application/wc_compare_service.c",
+        "src/application/wc_known_service.c",
     ],
 )

@@ -20,6 +20,9 @@ typedef struct {
 // Exact byte size a binary capture of `c` will occupy.
 size_t wc_capture_size(const WcCensus *c);
 
+// Upper bound on a binary capture (a full census). Sizes read buffers.
+size_t wc_capture_max_size(void);
+
 // Serialize meta + census into `buf` (little-endian, endian-independent). Returns bytes
 // written, or 0 if `cap` is too small.
 size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, const WcCensus *c);
