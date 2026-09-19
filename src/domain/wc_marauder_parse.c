@@ -54,9 +54,13 @@ static bool int_after(const char *buf, const char *key, int *val) {
     if (*p < '0' || *p > '9')
         return false;
     int n = 0;
-    while (*p >= '0' && *p <= '9') {
+    int digits = 0;
+    // Cap the digit count so untrusted input cannot overflow the accumulator (UB). Six
+    // digits is far more than any real RSSI/channel; extra digits are ignored.
+    while (*p >= '0' && *p <= '9' && digits < 6) {
         n = n * 10 + (*p - '0');
         p++;
+        digits++;
     }
     *val = sign * n;
     return true;

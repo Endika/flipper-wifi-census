@@ -81,8 +81,21 @@ static void test_long_line_is_safe(void) {
     assert(!wc_parse_summary_line(big2, sizeof(big2), &o));
 }
 
+static void test_long_digit_run_does_not_overflow(void) {
+    WcObservation o;
+    // A pathological RSSI with ~150 digits must not overflow the accumulator (UBSan).
+    char line[220];
+    int k = snprintf(line, sizeof(line), "MAC: 00:1B:21:00:00:04 RSSI:");
+    for (int i = k; i < 200; i++)
+        line[i] = '9';
+    line[200] = '\0';
+    assert(wc_parse_summary_line(line, strlen(line), &o));
+    assert(o.rssi == 127); // clamped, no UB
+}
+
 int main(void) {
     test_full_labeled_line();
+    test_long_digit_run_does_not_overflow();
     test_wildcard_probe_random_mac();
     test_quoted_ssid_with_space();
     test_lowercase_mac_no_labels();
