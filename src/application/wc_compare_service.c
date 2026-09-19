@@ -11,12 +11,20 @@ bool wc_compare_service_run(const WcStorePort *store, const char *name_a, const 
     WcCensus *b = malloc(sizeof(WcCensus));
     bool ok = false;
     if (a && b) {
+        wc_census_init(a);
+        wc_census_init(b);
         WcCaptureMeta ma, mb;
         if (wc_capture_service_load(store, name_a, &ma, a) &&
             wc_capture_service_load(store, name_b, &mb, b)) {
             wc_compare(out, a, b);
             ok = true;
         }
+    }
+    if (a) {
+        wc_census_free(a);
+    }
+    if (b) {
+        wc_census_free(b);
     }
     free(a);
     free(b);

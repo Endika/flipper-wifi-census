@@ -67,6 +67,11 @@ static size_t fake_read(void *self, const char *name, uint8_t *buf, size_t cap) 
     return f->len;
 }
 
+static size_t fake_file_size(void *self, const char *name) {
+    const FakeFile *f = fake_find(self, name);
+    return f ? f->len : 0;
+}
+
 static bool fake_rename(void *self, const char *from, const char *to) {
     FakeFile *f = fake_find(self, from);
     if (!f) {
@@ -101,6 +106,7 @@ static WcStorePort fake_store_port(FakeStore *s) {
     WcStorePort p = {.self = s,
                      .write_file = fake_write,
                      .read_file = fake_read,
+                     .file_size = fake_file_size,
                      .rename_file = fake_rename,
                      .delete_file = fake_delete,
                      .list = fake_list};
@@ -274,7 +280,7 @@ static void test_merge_service_end_to_end(void) {
     snprintf(meta.label, sizeof(meta.label), "d2");
     assert(wc_capture_service_save(&store, "d2", &meta, &d2.census));
 
-    assert(wc_merge_service_run(&store, "d1" WC_CAP_EXT, "d2" WC_CAP_EXT, "acc"));
+    assert(wc_merge_service_run(&store, "d1" WC_CAP_EXT, "d2" WC_CAP_EXT, "acc", NULL));
 
     WcCaptureMeta mm;
     WcCensus *merged = calloc(1, sizeof(WcCensus));

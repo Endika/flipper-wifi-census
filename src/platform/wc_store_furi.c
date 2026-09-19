@@ -70,6 +70,25 @@ static size_t store_read(void *self, const char *name, uint8_t *buf, size_t cap)
     return read;
 }
 
+static size_t store_file_size(void *self, const char *name) {
+    (void)self;
+    if (!name_is_safe(name)) {
+        return 0;
+    }
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    char path[256];
+    full_path(path, sizeof(path), name);
+    File *file = storage_file_alloc(storage);
+    size_t size = 0;
+    if (storage_file_open(file, path, FSAM_READ, FSOM_OPEN_EXISTING)) {
+        size = (size_t)storage_file_size(file);
+    }
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+    return size;
+}
+
 static bool store_rename(void *self, const char *from, const char *to) {
     (void)self;
     if (!name_is_safe(from) || !name_is_safe(to)) {
@@ -123,6 +142,7 @@ WcStorePort wc_store_furi_port(void) {
         .self = NULL,
         .write_file = store_write,
         .read_file = store_read,
+        .file_size = store_file_size,
         .rename_file = store_rename,
         .delete_file = store_delete,
         .list = store_list,

@@ -5,16 +5,18 @@
 #include <stdio.h>
 #include <string.h>
 
-static void fill_device(WcSignature *d, const uint8_t mac[6], bool random, WcDeviceType type,
-                        int8_t rssi, uint32_t obs, uint32_t first, uint32_t last) {
-    memset(d, 0, sizeof(*d));
-    memcpy(d->mac, mac, 6);
-    d->mac_random = random;
-    d->type = type;
-    d->rssi_max = rssi;
-    d->obs_count = obs;
-    d->first_seen = first;
-    d->last_seen = last;
+static WcSignature *add_device(WcCensus *c, const uint8_t mac[6], bool random, WcDeviceType type,
+                               int8_t rssi, uint32_t obs, uint32_t first, uint32_t last) {
+    WcSignature d;
+    memset(&d, 0, sizeof(d));
+    memcpy(d.mac, mac, 6);
+    d.mac_random = random;
+    d.type = type;
+    d.rssi_max = rssi;
+    d.obs_count = obs;
+    d.first_seen = first;
+    d.last_seen = last;
+    return wc_census_add(c, &d);
 }
 
 static void test_round_trip(void) {
@@ -22,12 +24,11 @@ static void test_round_trip(void) {
     wc_census_init(&c);
     uint8_t m1[6] = {0xB8, 0x27, 0xEB, 1, 2, 3};
     uint8_t m2[6] = {0xDA, 0, 0, 0, 0, 9};
-    fill_device(&c.devices[0], m1, false, WcDeviceIot, -55, 10, 100, 200);
-    wc_signature_add_ssid(&c.devices[0], "Home,Net"); // comma to stress CSV, ok in binary
-    c.devices[0].ie_hash = 0xDEADBEEFu;
-    c.devices[0].ie_vendor = WcVendorApple;
-    fill_device(&c.devices[1], m2, true, WcDevicePhone, -70, 3, 150, 160);
-    c.count = 2;
+    WcSignature *d0 = add_device(&c, m1, false, WcDeviceIot, -55, 10, 100, 200);
+    wc_signature_add_ssid(d0, "Home,Net"); // comma to stress CSV, ok in binary
+    d0->ie_hash = 0xDEADBEEFu;
+    d0->ie_vendor = WcVendorApple;
+    add_device(&c, m2, true, WcDevicePhone, -70, 3, 150, 160);
 
     WcCaptureMeta meta;
     memset(&meta, 0, sizeof(meta));
@@ -102,8 +103,7 @@ static void test_write_rejects_small_buffer(void) {
     WcCensus c;
     wc_census_init(&c);
     uint8_t mac[6] = {1, 2, 3, 4, 5, 6};
-    fill_device(&c.devices[0], mac, false, WcDeviceLaptop, -60, 1, 1, 1);
-    c.count = 1;
+    add_device(&c, mac, false, WcDeviceLaptop, -60, 1, 1, 1);
     WcCaptureMeta meta;
     memset(&meta, 0, sizeof(meta));
     uint8_t tiny[8];
@@ -137,8 +137,7 @@ static void test_read_rejects_truncation(void) {
     WcCensus c;
     wc_census_init(&c);
     uint8_t mac[6] = {0xB8, 0x27, 0xEB, 9, 9, 9};
-    fill_device(&c.devices[0], mac, false, WcDeviceIot, -50, 1, 1, 1);
-    c.count = 1;
+    add_device(&c, mac, false, WcDeviceIot, -50, 1, 1, 1);
     WcCaptureMeta meta;
     memset(&meta, 0, sizeof(meta));
     uint8_t buf[512];
@@ -152,9 +151,8 @@ static void test_csv(void) {
     WcCensus c;
     wc_census_init(&c);
     uint8_t mac[6] = {0xAB, 0xCD, 0xEF, 0x01, 0x02, 0x03};
-    fill_device(&c.devices[0], mac, false, WcDeviceIot, -55, 7, 100, 200);
-    wc_signature_add_ssid(&c.devices[0], "Cafe,WiFi"); // comma must be quoted
-    c.count = 1;
+    WcSignature *d0 = add_device(&c, mac, false, WcDeviceIot, -55, 7, 100, 200);
+    wc_signature_add_ssid(d0, "Cafe,WiFi"); // comma must be quoted
     WcCaptureMeta meta;
     memset(&meta, 0, sizeof(meta));
     strncpy(meta.label, "loc", WC_LABEL_MAX);

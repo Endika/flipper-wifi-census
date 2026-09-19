@@ -45,12 +45,15 @@ bool wc_capture_service_save(const WcStorePort *store, const char *basename,
 
 bool wc_capture_service_load(const WcStorePort *store, const char *filename, WcCaptureMeta *meta,
                              WcCensus *c) {
-    size_t cap = wc_capture_max_size();
-    uint8_t *buf = malloc(cap);
+    size_t size = store->file_size(store->self, filename);
+    if (size == 0) {
+        return false;
+    }
+    uint8_t *buf = malloc(size);
     if (!buf) {
         return false;
     }
-    size_t n = store->read_file(store->self, filename, buf, cap);
+    size_t n = store->read_file(store->self, filename, buf, size);
     bool ok = (n > 0) && wc_capture_read(meta, c, buf, n);
     free(buf);
     return ok;

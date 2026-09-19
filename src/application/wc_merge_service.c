@@ -15,16 +15,19 @@ static uint32_t max_u32(uint32_t a, uint32_t b) {
 }
 
 bool wc_merge_service_run(const WcStorePort *store, const char *name_a, const char *name_b,
-                          const char *out_basename) {
+                          const char *out_basename, uint16_t *out_devices) {
     WcCensus *a = malloc(sizeof(WcCensus));
     WcCensus *b = malloc(sizeof(WcCensus));
     bool ok = false;
     if (a && b) {
+        wc_census_init(a);
+        wc_census_init(b);
         WcCaptureMeta ma, mb;
         if (wc_capture_service_load(store, name_a, &ma, a) &&
             wc_capture_service_load(store, name_b, &mb, b)) {
             wc_census_merge(a, b);
-            free(b); // b is folded into a; free it before the (allocating) save to cut peak RAM
+            wc_census_free(b); // folded into a; release before the (allocating) save
+            free(b);
             b = NULL;
 
             WcCaptureMeta out;
@@ -36,7 +39,16 @@ bool wc_merge_service_run(const WcStorePort *store, const char *name_a, const ch
             out.channels_mask = ma.channels_mask | mb.channels_mask;
             out.mode = 0;
             ok = wc_capture_service_save(store, out_basename, &out, a);
+            if (ok && out_devices) {
+                *out_devices = a->count;
+            }
         }
+    }
+    if (a) {
+        wc_census_free(a);
+    }
+    if (b) {
+        wc_census_free(b);
     }
     free(a);
     free(b);

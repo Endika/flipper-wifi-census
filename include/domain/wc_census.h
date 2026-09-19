@@ -3,14 +3,17 @@
 #include "include/domain/wc_observation.h"
 #include "include/domain/wc_signature.h"
 
-#define WC_CENSUS_MAX_DEVICES                                                                      \
-    80 // heap-held; kept modest so merge/compare/import stay within FAP heap
+#define WC_CENSUS_MAX_DEVICES 300 // safety ceiling; memory scales with the actual device count
+#define WC_CENSUS_GROW 16         // device-array growth chunk
 
-// The set of unique devices built up over one scan session.
+// The set of unique devices seen over one scan session. The device array grows on demand
+// (realloc), so RAM tracks the real device count — a quiet room costs a few hundred bytes, a
+// packed venue grows toward the ceiling. Always pair wc_census_init with wc_census_free.
 typedef struct {
-    WcSignature devices[WC_CENSUS_MAX_DEVICES];
+    WcSignature *devices;
     uint16_t count;
-    uint16_t dropped; // observations discarded because the table was full
+    uint16_t capacity;
+    uint16_t dropped; // observations discarded at the ceiling / on allocation failure
 } WcCensus;
 
 typedef struct {
@@ -34,6 +37,13 @@ typedef struct {
 uint16_t wc_census_ssid_tally(const WcCensus *c, WcSsidTally *out, uint16_t cap);
 
 void wc_census_init(WcCensus *c);
+
+// Release the device array. Safe to call on a zeroed/empty census; leaves it re-init'd.
+void wc_census_free(WcCensus *c);
+
+// Append a copy of `sig` (growing the array). Returns the stored signature, or NULL at the
+// ceiling / on allocation failure (bumps dropped). Used by the codec and tests.
+WcSignature *wc_census_add(WcCensus *c, const WcSignature *sig);
 
 // Fold one observation into the census, deduping into an existing device or adding a new
 // one. Dedup rules, in order:

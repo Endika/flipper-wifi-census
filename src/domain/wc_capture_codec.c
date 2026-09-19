@@ -43,10 +43,6 @@ size_t wc_capture_size(const WcCensus *c) {
     return WC_HEADER_SIZE + (size_t)c->count * WC_RECORD_V2;
 }
 
-size_t wc_capture_max_size(void) {
-    return WC_HEADER_SIZE + (size_t)WC_CENSUS_MAX_DEVICES * WC_RECORD_V2;
-}
-
 size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, const WcCensus *c) {
     size_t need = wc_capture_size(c);
     if (cap < need) {
@@ -137,36 +133,40 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
 
     wc_census_init(c);
     for (uint16_t i = 0; i < count; i++) {
-        WcSignature *d = &c->devices[i];
-        memset(d, 0, sizeof(*d));
-        memcpy(d->mac, p, 6);
+        WcSignature d;
+        memset(&d, 0, sizeof(d));
+        memcpy(d.mac, p, 6);
         p += 6;
-        d->mac_random = (*p++ != 0);
-        d->type = (WcDeviceType)*p++;
-        d->rssi_max = (int8_t)*p++;
+        d.mac_random = (*p++ != 0);
+        d.type = (WcDeviceType)*p++;
+        d.rssi_max = (int8_t)*p++;
         uint8_t ssid_count = *p++;
         if (ssid_count > WC_SIG_MAX_SSIDS) {
+            wc_census_free(c);
             return false;
         }
-        d->ssid_count = ssid_count;
-        d->obs_count = get_u32(p);
+        d.ssid_count = ssid_count;
+        d.obs_count = get_u32(p);
         p += 4;
-        d->first_seen = get_u32(p);
+        d.first_seen = get_u32(p);
         p += 4;
-        d->last_seen = get_u32(p);
+        d.last_seen = get_u32(p);
         p += 4;
         for (uint8_t s = 0; s < WC_SIG_MAX_SSIDS; s++) {
-            memcpy(d->ssids[s], p, WC_SSID_MAX_LEN);
-            d->ssids[s][WC_SSID_MAX_LEN] = '\0';
+            memcpy(d.ssids[s], p, WC_SSID_MAX_LEN);
+            d.ssids[s][WC_SSID_MAX_LEN] = '\0';
             p += WC_SSID_SLOT;
         }
         if (version >= 2) {
-            d->ie_hash = get_u32(p);
+            d.ie_hash = get_u32(p);
             p += 4;
-            d->ie_vendor = (WcVendor)*p++;
+            d.ie_vendor = (WcVendor)*p++;
+        }
+        if (!wc_census_add(c, &d)) {
+            wc_census_free(c);
+            return false;
         }
     }
-    c->count = count;
     return true;
 }
 

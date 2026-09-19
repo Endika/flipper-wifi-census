@@ -39,6 +39,7 @@ bool wc_import_service_run(const WcStorePort *store, WcClockPort clock, const ch
                 meta.epoch = ic.now;
                 ok = wc_capture_service_save(store, out_basename, &meta, census);
             }
+            wc_census_free(census);
         }
     }
     free(buf);

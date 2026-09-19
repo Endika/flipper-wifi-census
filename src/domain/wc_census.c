@@ -1,9 +1,48 @@
 #include "include/domain/wc_census.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 void wc_census_init(WcCensus *c) {
-    memset(c, 0, sizeof(*c));
+    c->devices = NULL;
+    c->count = 0;
+    c->capacity = 0;
+    c->dropped = 0;
+}
+
+void wc_census_free(WcCensus *c) {
+    free(c->devices);
+    wc_census_init(c);
+}
+
+// Ensure room for one more device, growing the array in chunks up to the ceiling.
+static bool ensure_one(WcCensus *c) {
+    if (c->count < c->capacity) {
+        return true;
+    }
+    if (c->capacity >= WC_CENSUS_MAX_DEVICES) {
+        return false;
+    }
+    uint16_t newcap = c->capacity + WC_CENSUS_GROW;
+    if (newcap > WC_CENSUS_MAX_DEVICES) {
+        newcap = WC_CENSUS_MAX_DEVICES;
+    }
+    WcSignature *nd = realloc(c->devices, (size_t)newcap * sizeof(WcSignature));
+    if (!nd) {
+        return false;
+    }
+    c->devices = nd;
+    c->capacity = newcap;
+    return true;
+}
+
+WcSignature *wc_census_add(WcCensus *c, const WcSignature *sig) {
+    if (!ensure_one(c)) {
+        c->dropped++;
+        return NULL;
+    }
+    c->devices[c->count] = *sig;
+    return &c->devices[c->count++];
 }
 
 static WcSignature *find_by_mac(WcCensus *c, const uint8_t mac[6]) {
@@ -42,7 +81,7 @@ WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t n
         wc_signature_merge(existing, obs, now);
         return existing;
     }
-    if (c->count >= WC_CENSUS_MAX_DEVICES) {
+    if (!ensure_one(c)) {
         c->dropped++;
         return NULL;
     }
@@ -138,10 +177,8 @@ void wc_census_merge(WcCensus *dst, const WcCensus *src) {
         WcSignature *m = find_merge_target(dst, sd);
         if (m) {
             wc_signature_absorb(m, sd);
-        } else if (dst->count < WC_CENSUS_MAX_DEVICES) {
-            dst->devices[dst->count++] = *sd;
         } else {
-            dst->dropped++;
+            wc_census_add(dst, sd); // grows; bumps dropped at the ceiling
         }
     }
 }

@@ -71,7 +71,9 @@ static void wc_app_free(WcApp *app) {
     if (app->serial) {
         wc_serial_furi_free(app->serial);
     }
+    wc_census_free(&app->scan.census);
     if (app->browse_census) {
+        wc_census_free(app->browse_census);
         free(app->browse_census);
     }
     free(app);

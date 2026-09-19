@@ -167,6 +167,7 @@ static void scan_render(WcApp *app) {
 
 void wc_scene_scan_on_enter(void *context) {
     WcApp *app = context;
+    wc_census_free(&app->scan.census); // release any prior scan before a new one
     wc_scan_init(&app->scan, app->clock);
     app->scan_started = wc_clock_now(&app->clock);
 
@@ -236,6 +237,7 @@ bool wc_scene_save_on_event(void *context, SceneManagerEvent event) {
         meta.duration_s = wc_clock_now(&app->clock) - app->scan_started;
         meta.channels_mask = 0x3FFF; // channels 1-14 hopped
         wc_capture_service_save(&app->store, app->text_buf, &meta, &app->scan.census);
+        wc_census_free(&app->scan.census); // done with it; free until the next scan
         scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
         return true;
     }
@@ -254,6 +256,7 @@ void wc_scene_save_on_exit(void *context) {
 void wc_scene_files_on_enter(void *context) {
     WcApp *app = context;
     if (app->browse_census) {
+        wc_census_free(app->browse_census);
         free(app->browse_census);
         app->browse_census = NULL;
     }
@@ -593,7 +596,7 @@ void wc_scene_compare_result_on_exit(void *context) {
 
 void wc_scene_merge_a_on_enter(void *context) {
     WcApp *app = context;
-    populate_files(app, "Merge: pick A");
+    populate_files(app, "Merge - pick 1st capture");
 }
 
 bool wc_scene_merge_a_on_event(void *context, SceneManagerEvent event) {
@@ -614,7 +617,9 @@ void wc_scene_merge_a_on_exit(void *context) {
 
 void wc_scene_merge_b_on_enter(void *context) {
     WcApp *app = context;
-    populate_files(app, "Merge: pick B");
+    char header[WC_TEXT_BUF_SIZE + 20];
+    snprintf(header, sizeof(header), "2nd to add to %s", app->merge_a);
+    populate_files(app, header);
 }
 
 bool wc_scene_merge_b_on_event(void *context, SceneManagerEvent event) {
@@ -647,8 +652,17 @@ void wc_scene_merge_name_on_enter(void *context) {
 bool wc_scene_merge_name_on_event(void *context, SceneManagerEvent event) {
     WcApp *app = context;
     if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventTextDone) {
-        wc_merge_service_run(&app->store, app->merge_a, app->merge_b, app->text_buf);
-        scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
+        uint16_t devices = 0;
+        bool ok =
+            wc_merge_service_run(&app->store, app->merge_a, app->merge_b, app->text_buf, &devices);
+        if (ok) {
+            snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
+                     "Merged\n%s\n+ %s\n=> %s%s\n\n%u unique devices\n(back = menu)", app->merge_a,
+                     app->merge_b, app->text_buf, WC_CAP_EXT, devices);
+        } else {
+            snprintf(app->result_text, WC_RESULT_TEXT_SIZE, "Merge failed (could not read files).");
+        }
+        scene_manager_next_scene(app->scene_manager, WcSceneMergeResult);
         return true;
     }
     return false;
@@ -657,6 +671,28 @@ bool wc_scene_merge_name_on_event(void *context, SceneManagerEvent event) {
 void wc_scene_merge_name_on_exit(void *context) {
     WcApp *app = context;
     text_input_reset(app->text_input);
+}
+
+void wc_scene_merge_result_on_enter(void *context) {
+    WcApp *app = context;
+    text_box_reset(app->text_box);
+    text_box_set_font(app->text_box, TextBoxFontText);
+    text_box_set_text(app->text_box, app->result_text);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewTextBox);
+}
+
+bool wc_scene_merge_result_on_event(void *context, SceneManagerEvent event) {
+    if (event.type == SceneManagerEventTypeBack) {
+        WcApp *app = context;
+        scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
+        return true;
+    }
+    return false;
+}
+
+void wc_scene_merge_result_on_exit(void *context) {
+    WcApp *app = context;
+    text_box_reset(app->text_box);
 }
 
 // ---------------------------------------------------------------------------

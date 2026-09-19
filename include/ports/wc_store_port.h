@@ -16,6 +16,8 @@ typedef struct {
     bool (*write_file)(void *self, const char *name, const uint8_t *data, size_t len);
     // Reads up to `cap` bytes; returns bytes read, or 0 on any failure (missing/too big).
     size_t (*read_file)(void *self, const char *name, uint8_t *buf, size_t cap);
+    // Size of a stored file in bytes, or 0 if missing (lets a caller size a read buffer).
+    size_t (*file_size)(void *self, const char *name);
     bool (*rename_file)(void *self, const char *from, const char *to);
     bool (*delete_file)(void *self, const char *name);
     uint16_t (*list)(void *self, WcStoreNameFn cb, void *ctx);

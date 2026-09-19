@@ -8,5 +8,6 @@
 // the result as a new capture "<out_basename>.wcen" (+ .csv). Metadata is combined: epoch =
 // earliest, duration = wall-clock span covered, channels = union. Censuses are heap-held.
 // Returns false if either load fails, the name is bad, or the save fails.
+// `out_devices` (nullable) receives the merged device count on success.
 bool wc_merge_service_run(const WcStorePort *store, const char *name_a, const char *name_b,
-                          const char *out_basename);
+                          const char *out_basename, uint16_t *out_devices);
