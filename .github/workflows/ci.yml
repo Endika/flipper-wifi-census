@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential cppcheck clang-format
+      - name: Run linter
+        run: make linter
+      - name: Check format
+        run: git ls-files '*.c' '*.h' | xargs clang-format --dry-run --Werror
+      - name: Run tests
+        run: make test
+      # The .fap is the only gate that compiles src/app, src/views, src/scenes,
+      # src/platform and src/persistence: they need the firmware's furi headers, so gcc
+      # never sees them and cppcheck was their only reader. Last in the job, so the fast
+      # gates above still fail first.
+      - name: Build FAP
+        uses: flipperdevices/flipperzero-ufbt-action@v0.1.4
+        with:
+          # Stable released firmware API, matching the release build — a dev-channel build
+          # targets a newer API than stable firmware provides.
+          sdk-channel: release
