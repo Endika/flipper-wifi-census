@@ -13,6 +13,8 @@ typedef struct {
     uint8_t channel;                       // 1..14
     char probed_ssid[WC_SSID_MAX_LEN + 1]; // directed probe SSID, "" if wildcard/beacon
     bool is_beacon;                        // beacon (an AP) vs probe request (a client)
+    uint16_t seq;                          // 802.11 sequence number (0 when unknown)
+    uint32_t ie_hash;                      // fingerprint of the probe's IEs (0 if none)
 } WcObservation;
 
 typedef enum {
