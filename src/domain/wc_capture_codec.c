@@ -175,13 +175,14 @@ size_t wc_capture_to_csv(char *out, size_t cap, const WcCaptureMeta *meta, const
     }
     csv_appendf(out, cap, &len, "# label=%s epoch=%lu duration_s=%lu\n", meta->label,
                 (unsigned long)meta->epoch, (unsigned long)meta->duration_s);
-    csv_appendf(out, cap, &len, "mac,random,type,rssi_max,obs_count,first_seen,last_seen,ssids\n");
+    csv_appendf(out, cap, &len,
+                "mac,random,type,vendor,rssi_max,obs_count,first_seen,last_seen,ssids\n");
     for (uint16_t i = 0; i < c->count; i++) {
         const WcSignature *d = &c->devices[i];
-        csv_appendf(out, cap, &len, "%02X:%02X:%02X:%02X:%02X:%02X,%d,%s,%d,%lu,%lu,%lu,\"",
+        csv_appendf(out, cap, &len, "%02X:%02X:%02X:%02X:%02X:%02X,%d,%s,%s,%d,%lu,%lu,%lu,\"",
                     d->mac[0], d->mac[1], d->mac[2], d->mac[3], d->mac[4], d->mac[5],
-                    d->mac_random ? 1 : 0, wc_device_type_name(d->type), d->rssi_max,
-                    (unsigned long)d->obs_count, (unsigned long)d->first_seen,
+                    d->mac_random ? 1 : 0, wc_device_type_name(d->type), wc_oui_vendor_name(d->mac),
+                    d->rssi_max, (unsigned long)d->obs_count, (unsigned long)d->first_seen,
                     (unsigned long)d->last_seen);
         for (uint8_t s = 0; s < d->ssid_count; s++) {
             // Escape embedded quotes so the quoted SSID field stays valid CSV.

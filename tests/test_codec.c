@@ -123,8 +123,8 @@ static void test_csv(void) {
     char out[512];
     size_t len = wc_capture_to_csv(out, sizeof(out), &meta, &c);
     assert(len < sizeof(out));
-    assert(strstr(out, "mac,random,type,rssi_max,obs_count,first_seen,last_seen,ssids"));
-    assert(strstr(out, "AB:CD:EF:01:02:03,0,iot,-55,7,100,200,\"Cafe,WiFi\""));
+    assert(strstr(out, "mac,random,type,vendor,rssi_max,obs_count,first_seen,last_seen,ssids"));
+    assert(strstr(out, "AB:CD:EF:01:02:03,0,iot,,-55,7,100,200,\"Cafe,WiFi\""));
 
     // Truncation: a tiny buffer stays NUL-terminated and reports the full needed length.
     char small[16];

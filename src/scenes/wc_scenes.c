@@ -339,10 +339,11 @@ void wc_scene_devices_on_enter(void *context) {
     uint16_t n = c ? c->count : 0;
     for (uint16_t i = 0; i < n && i < WC_MAX_LIST; i++) {
         const WcSignature *d = &c->devices[i];
-        char label[48];
-        snprintf(label, sizeof(label), "%s %02X:%02X:%02X:%02X:%02X:%02X",
-                 wc_device_type_name(d->type), d->mac[0], d->mac[1], d->mac[2], d->mac[3],
-                 d->mac[4], d->mac[5]);
+        const char *vendor = wc_oui_vendor_name(d->mac);
+        char label[64];
+        snprintf(label, sizeof(label), "%s%s%s %02X:%02X:%02X:%02X:%02X:%02X",
+                 wc_device_type_name(d->type), vendor[0] ? " " : "", vendor, d->mac[0], d->mac[1],
+                 d->mac[2], d->mac[3], d->mac[4], d->mac[5]);
         submenu_add_item(app->submenu, label, i, wc_submenu_cb, app);
     }
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);

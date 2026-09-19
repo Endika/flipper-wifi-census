@@ -27,7 +27,12 @@ typedef enum {
     WcVendorUnknown = 0,
     WcVendorApple,
     WcVendorSamsung,
+    WcVendorHuawei,
+    WcVendorXiaomi,
+    WcVendorGoogle,
     WcVendorIntel,
+    WcVendorDell,
+    WcVendorMicrosoft,
     WcVendorEspressif,
     WcVendorRaspberryPi,
 } WcVendor;
@@ -39,6 +44,10 @@ bool wc_mac_is_random(const uint8_t mac[6]);
 // Vendor from the OUI (first 3 bytes). Only meaningful for a stable MAC; a randomized MAC
 // always returns WcVendorUnknown. Backed by a small table of well-known OUIs, not exhaustive.
 WcVendor wc_oui_vendor(const uint8_t mac[6]);
+
+// Human-readable vendor name from the OUI ("Apple", "Samsung", …), or "" when randomized or
+// not in the curated table. Never NULL.
+const char *wc_oui_vendor_name(const uint8_t mac[6]);
 
 // Best-effort device class from one observation. A beacon is an AP; a randomized MAC with a
 // wildcard probe is the modern-phone pattern; a stable MAC leans on its vendor. Heuristic.

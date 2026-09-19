@@ -33,6 +33,11 @@ static void test_oui_vendor(void) {
     assert(wc_oui_vendor(pi) == WcVendorRaspberryPi);
     assert(wc_oui_vendor(intel) == WcVendorIntel);
     assert(wc_oui_vendor(random) == WcVendorUnknown); // randomized -> no vendor
+    assert(strcmp(wc_oui_vendor_name(pi), "Raspberry Pi") == 0);
+    assert(strcmp(wc_oui_vendor_name(intel), "Intel") == 0);
+    assert(wc_oui_vendor_name(random)[0] == '\0'); // randomized -> blank
+    uint8_t apple[6] = {0x3C, 0x22, 0xFB, 1, 2, 3};
+    assert(strcmp(wc_oui_vendor_name(apple), "Apple") == 0);
 }
 
 static void test_device_type_guess(void) {
