@@ -15,5 +15,6 @@ App(
         "src/domain/wc_version_info.c",
         "src/domain/wc_observation.c",
         "src/domain/wc_signature.c",
+        "src/domain/wc_census.c",
     ],
 )
