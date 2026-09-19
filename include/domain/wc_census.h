@@ -3,7 +3,7 @@
 #include "include/domain/wc_observation.h"
 #include "include/domain/wc_signature.h"
 
-#define WC_CENSUS_MAX_DEVICES 250 // safety ceiling (bounds FAP heap; scan/merge hold this much)
+#define WC_CENSUS_MAX_DEVICES 320 // safety ceiling (bounds FAP heap; scan/merge hold this much)
 #define WC_CENSUS_GROW 16         // device-array growth chunk
 
 // The set of unique devices seen over one scan session. The device array grows on demand
