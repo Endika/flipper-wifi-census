@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.14](https://github.com/Endika/flipper-wifi-census/compare/v0.1.13...v0.1.14) (2026-09-19)
+
+
+### Bug Fixes
+
+* also read a quoted SSID from Marauder probe lines lacking an SSID label ([40b674e](https://github.com/Endika/flipper-wifi-census/commit/40b674e1547f1fa1e2209f5fca46e13b2a5ef511))
+
 ## [0.1.13](https://github.com/Endika/flipper-wifi-census/compare/v0.1.12...v0.1.13) (2026-09-19)
 
 
