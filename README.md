@@ -38,10 +38,13 @@ ESP32 TX, GND/3V3 shared). Default baud is 115200 (switchable to 230400 in Setti
 
 ### Flashing Marauder
 
-Flash Marauder onto the board from a machine with USB (here, the Pi). Pin the version at
-**v1.17.0**; this app is written against that release's serial line format. If you use a
-different build and the counts look wrong, the probe-line format is isolated in
-`src/domain/wc_marauder_parse.c` and can be adjusted there.
+Easiest path is the web flasher (Chrome/Edge WebSerial, no local tooling): connect the board
+by USB and use <https://flash.pingequa.com/devices/flipper-wifi-devboard-marauder>. From a
+machine with USB and esptool it can also be flashed on the command line (here, the Pi).
+
+Pin the version at **v1.17.0**; this app is written against that release's serial line
+format. If you use a different build and the counts look wrong, the probe-line format is
+isolated in `src/domain/wc_marauder_parse.c` and can be adjusted there.
 
 ## Using it
 
