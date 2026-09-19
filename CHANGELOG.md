@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/Endika/flipper-wifi-census/compare/v0.1.1...v0.1.2) (2026-09-19)
+
+
+### Features
+
+* show version, author and GitHub link in About ([914cc30](https://github.com/Endika/flipper-wifi-census/commit/914cc303531ff91dc99748765637fd7275ef3af7))
+
 ## [0.1.1](https://github.com/Endika/flipper-wifi-census/compare/v0.1.0...v0.1.1) (2026-09-19)
 
 
