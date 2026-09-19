@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/Endika/flipper-wifi-census/compare/v0.1.4...v0.1.5) (2026-09-19)
+
+
+### Features
+
+* store IE fingerprint and detect vendor from probe vendor IEs ([ca0b9e8](https://github.com/Endika/flipper-wifi-census/commit/ca0b9e84c386dcd111c6fce9803812a1acf5e3d8))
+
 ## [0.1.4](https://github.com/Endika/flipper-wifi-census/compare/v0.1.3...v0.1.4) (2026-09-19)
 
 
