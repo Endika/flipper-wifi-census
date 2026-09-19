@@ -1,6 +1,7 @@
 #include "include/app/wc_app.h"
 #include "include/application/wc_files.h"
 #include "include/domain/wc_observation.h"
+#include "include/domain/wc_timefmt.h"
 #include "include/domain/wc_version_info.h"
 #include "include/scenes/wc_scene.h"
 
@@ -198,11 +199,12 @@ void wc_scene_scan_on_exit(void *context) {
 
 void wc_scene_save_on_enter(void *context) {
     WcApp *app = context;
-    app->text_buf[0] = '\0';
+    // Prefill a default name from the scan's start time so OK-without-typing saves at once.
+    wc_default_capture_name(app->scan_started, app->text_buf, sizeof(app->text_buf));
     text_input_reset(app->text_input);
     text_input_set_header_text(app->text_input, "Capture name");
     text_input_set_result_callback(app->text_input, wc_text_input_cb, app, app->text_buf,
-                                   WC_BASENAME_MAX, true);
+                                   WC_BASENAME_MAX, false);
     text_input_set_minimum_length(app->text_input, 1);
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewTextInput);
 }

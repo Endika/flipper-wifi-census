@@ -21,6 +21,7 @@ App(
         "src/domain/wc_known.c",
         "src/domain/wc_marauder_parse.c",
         "src/domain/wc_line_assembler.c",
+        "src/domain/wc_timefmt.c",
         "src/platform/wc_clock_furi.c",
         "src/platform/wc_store_furi.c",
         "src/platform/wc_serial_furi.c",

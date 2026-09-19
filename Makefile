@@ -36,8 +36,9 @@ OBJS_COMPARE = wc_observation.o wc_signature.o wc_census.o wc_compare.o test_com
 OBJS_KNOWN = wc_observation.o wc_signature.o wc_known.o test_known.o
 OBJS_PARSE = wc_observation.o wc_marauder_parse.o test_marauder_parse.o
 OBJS_LINEASM = wc_line_assembler.o test_line_assembler.o
+OBJS_TIMEFMT = wc_timefmt.o test_timefmt.o
 OBJS_APP = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o wc_compare.o wc_known.o wc_marauder_parse.o wc_scan_service.o wc_capture_service.o wc_compare_service.o wc_known_service.o test_app_services.o
-TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec test_wc_compare test_wc_known test_wc_parse test_wc_lineasm test_wc_app
+TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec test_wc_compare test_wc_known test_wc_parse test_wc_lineasm test_wc_app test_wc_timefmt
 
 test: $(TEST_BINS)
 	./test_wc_smoke
@@ -49,6 +50,7 @@ test: $(TEST_BINS)
 	./test_wc_parse
 	./test_wc_lineasm
 	./test_wc_app
+	./test_wc_timefmt
 
 test_wc_smoke: $(OBJS_SMOKE)
 	$(CC) $(CFLAGS) -o test_wc_smoke $(OBJS_SMOKE)
@@ -76,6 +78,9 @@ test_wc_lineasm: $(OBJS_LINEASM)
 
 test_wc_app: $(OBJS_APP)
 	$(CC) $(CFLAGS) -o test_wc_app $(OBJS_APP)
+
+test_wc_timefmt: $(OBJS_TIMEFMT)
+	$(CC) $(CFLAGS) -o test_wc_timefmt $(OBJS_TIMEFMT)
 
 wc_version_info.o: src/domain/wc_version_info.c include/domain/wc_version_info.h include/version.h
 	$(CC) $(CFLAGS) -c src/domain/wc_version_info.c -o wc_version_info.o
@@ -140,6 +145,12 @@ wc_compare_service.o: src/application/wc_compare_service.c include/application/w
 wc_known_service.o: src/application/wc_known_service.c include/application/wc_known_service.h include/application/wc_files.h include/domain/wc_known.h include/ports/wc_store_port.h
 	$(CC) $(CFLAGS) -c src/application/wc_known_service.c -o wc_known_service.o
 
+wc_timefmt.o: src/domain/wc_timefmt.c include/domain/wc_timefmt.h
+	$(CC) $(CFLAGS) -c src/domain/wc_timefmt.c -o wc_timefmt.o
+
+test_timefmt.o: tests/test_timefmt.c include/domain/wc_timefmt.h
+	$(CC) $(CFLAGS) -c tests/test_timefmt.c -o test_timefmt.o
+
 test_app_services.o: tests/test_app_services.c include/application/wc_scan_service.h include/application/wc_capture_service.h include/application/wc_compare_service.h include/application/wc_known_service.h include/application/wc_files.h
 	$(CC) $(CFLAGS) -c tests/test_app_services.c -o test_app_services.o
 
@@ -176,6 +187,7 @@ linter:
 		src/domain/wc_known.c \
 		src/domain/wc_marauder_parse.c \
 		src/domain/wc_line_assembler.c \
+		src/domain/wc_timefmt.c \
 		src/application/wc_scan_service.c \
 		src/application/wc_capture_service.c \
 		src/application/wc_compare_service.c \
@@ -195,7 +207,8 @@ linter:
 		tests/test_known.c \
 		tests/test_marauder_parse.c \
 		tests/test_line_assembler.c \
-		tests/test_app_services.c
+		tests/test_app_services.c \
+		tests/test_timefmt.c
 
 # --- build the .fap via the firmware tree (ufbt/fbt; not available in this sandbox) ---
 prepare:
