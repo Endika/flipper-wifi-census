@@ -55,3 +55,19 @@ WcDeviceType wc_device_type_guess(const WcObservation *obs) {
             return WcDeviceUnknown;
     }
 }
+
+const char *wc_device_type_name(WcDeviceType type) {
+    switch (type) {
+        case WcDevicePhone:
+            return "phone";
+        case WcDeviceLaptop:
+            return "laptop";
+        case WcDeviceIot:
+            return "iot";
+        case WcDeviceAp:
+            return "ap";
+        case WcDeviceUnknown:
+        default:
+            return "unknown";
+    }
+}

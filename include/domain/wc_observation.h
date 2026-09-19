@@ -43,3 +43,6 @@ WcVendor wc_oui_vendor(const uint8_t mac[6]);
 // Best-effort device class from one observation. A beacon is an AP; a randomized MAC with a
 // wildcard probe is the modern-phone pattern; a stable MAC leans on its vendor. Heuristic.
 WcDeviceType wc_device_type_guess(const WcObservation *obs);
+
+// Lowercase, stable, ASCII name for a device type ("unknown", "phone", ...). Never NULL.
+const char *wc_device_type_name(WcDeviceType type);

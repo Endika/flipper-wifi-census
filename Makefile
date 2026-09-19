@@ -31,12 +31,14 @@ help:
 OBJS_SMOKE = wc_version_info.o test_smoke.o
 OBJS_SIGNATURE = wc_observation.o wc_signature.o test_signature.o
 OBJS_CENSUS = wc_observation.o wc_signature.o wc_census.o test_census.o
-TEST_BINS = test_wc_smoke test_wc_signature test_wc_census
+OBJS_CODEC = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o test_codec.o
+TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec
 
 test: $(TEST_BINS)
 	./test_wc_smoke
 	./test_wc_signature
 	./test_wc_census
+	./test_wc_codec
 
 test_wc_smoke: $(OBJS_SMOKE)
 	$(CC) $(CFLAGS) -o test_wc_smoke $(OBJS_SMOKE)
@@ -46,6 +48,9 @@ test_wc_signature: $(OBJS_SIGNATURE)
 
 test_wc_census: $(OBJS_CENSUS)
 	$(CC) $(CFLAGS) -o test_wc_census $(OBJS_CENSUS)
+
+test_wc_codec: $(OBJS_CODEC)
+	$(CC) $(CFLAGS) -o test_wc_codec $(OBJS_CODEC)
 
 wc_version_info.o: src/domain/wc_version_info.c include/domain/wc_version_info.h include/version.h
 	$(CC) $(CFLAGS) -c src/domain/wc_version_info.c -o wc_version_info.o
@@ -68,6 +73,12 @@ wc_census.o: src/domain/wc_census.c include/domain/wc_census.h include/domain/wc
 test_census.o: tests/test_census.c include/domain/wc_census.h include/domain/wc_observation.h
 	$(CC) $(CFLAGS) -c tests/test_census.c -o test_census.o
 
+wc_capture_codec.o: src/domain/wc_capture_codec.c include/domain/wc_capture_codec.h include/domain/wc_census.h
+	$(CC) $(CFLAGS) -c src/domain/wc_capture_codec.c -o wc_capture_codec.o
+
+test_codec.o: tests/test_codec.c include/domain/wc_capture_codec.h include/domain/wc_census.h
+	$(CC) $(CFLAGS) -c tests/test_codec.c -o test_codec.o
+
 # --- format / lint ---
 FORMAT_FILES := $(shell git ls-files '*.c' '*.h' 2>/dev/null)
 ifeq ($(strip $(FORMAT_FILES)),)
@@ -75,7 +86,7 @@ FORMAT_FILES := $(shell find . -type f \( -name '*.c' -o -name '*.h' \) ! -path 
 endif
 
 format:
-	clang-format -i $(FORMAT_FILES)
+	@find . -type f \( -name '*.c' -o -name '*.h' \) ! -path './.git/*' | sort | xargs clang-format -i
 
 # Check formatting of ALL source files (find-based, not git-tracked-only) so a
 # not-yet-committed file cannot slip past the format gate locally.
@@ -88,13 +99,17 @@ linter:
 	cppcheck --enable=all --inline-suppr --error-exitcode=1 -I. \
 		--suppress=missingIncludeSystem \
 		--suppress=unusedFunction:main.c \
+		--suppress=checkersReport \
+		--suppress=normalCheckLevelMaxBranches \
 		src/domain/wc_version_info.c \
 		src/domain/wc_observation.c \
 		src/domain/wc_signature.c \
 		src/domain/wc_census.c \
+		src/domain/wc_capture_codec.c \
 		tests/test_smoke.c \
 		tests/test_signature.c \
-		tests/test_census.c
+		tests/test_census.c \
+		tests/test_codec.c
 
 # --- build the .fap via the firmware tree (ufbt/fbt; not available in this sandbox) ---
 prepare:
