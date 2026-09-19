@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/Endika/flipper-wifi-census/compare/v0.1.11...v0.1.12) (2026-09-19)
+
+
+### Features
+
+* merge many captures off-device with the wc_merge host tool (no device cap) ([2f200ce](https://github.com/Endika/flipper-wifi-census/commit/2f200ce66162688a95bee4c76861defb98cc69f1))
+
 ## [0.1.11](https://github.com/Endika/flipper-wifi-census/compare/v0.1.10...v0.1.11) (2026-09-19)
 
 
