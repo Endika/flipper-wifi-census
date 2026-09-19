@@ -13,8 +13,10 @@ static bool same_device(const WcSignature *x, const WcSignature *y, WcMatchReaso
         shared_ssid[0] = '\0';
         return true;
     }
-    // Shared directed SSID between two client devices.
-    if (x->type != WcDeviceAp && y->type != WcDeviceAp) {
+    // Shared directed SSID crosses a ROTATING (randomized) device between captures — the
+    // friend-phone case. It must not link two distinct stable-MAC devices that merely share a
+    // common network (e.g. a cafe SSID), so require at least one side to be randomized.
+    if ((x->mac_random || y->mac_random) && x->type != WcDeviceAp && y->type != WcDeviceAp) {
         for (uint8_t i = 0; i < x->ssid_count; i++) {
             if (wc_signature_has_ssid(y, x->ssids[i])) {
                 *reason = WcMatchBySsid;

@@ -140,10 +140,10 @@ static void scan_render(WcApp *app) {
     char buf[256];
     snprintf(
         buf, sizeof(buf),
-        "Scanning 2.4GHz...\nUnique: %u (stable %u)\nRandom: %u (%u%%)\nPhone %u  Laptop %u\nIoT "
-        "%u  AP %u\nBack = stop & save",
+        "Scanning 2.4GHz...\nUnique: %u (stable %u)\nRandom: %u (%u%%)\nPhone %u Lap %u IoT %u\n"
+        "Networks sought: %u\nBack = stop & save",
         s.total, s.unique_stable, s.random_count, s.pct_random, s.by_type[WcDevicePhone],
-        s.by_type[WcDeviceLaptop], s.by_type[WcDeviceIot], s.by_type[WcDeviceAp]);
+        s.by_type[WcDeviceLaptop], s.by_type[WcDeviceIot], s.networks);
     widget_reset(app->widget);
     widget_add_string_multiline_element(app->widget, 0, 0, AlignLeft, AlignTop, FontSecondary, buf);
 }
@@ -265,15 +265,26 @@ void wc_scene_files_on_exit(void *context) {
 
 typedef enum {
     ActionDevices,
+    ActionNetworks,
     ActionRename,
     ActionDelete,
 } FileAction;
+
+// Load the selected capture into browse_census (allocating once). Returns true on success.
+static bool ensure_browse_loaded(WcApp *app) {
+    if (!app->browse_census) {
+        app->browse_census = malloc(sizeof(WcCensus));
+    }
+    return app->browse_census && wc_capture_service_load(&app->store, app->selected_file,
+                                                         &app->browse_meta, app->browse_census);
+}
 
 void wc_scene_file_actions_on_enter(void *context) {
     WcApp *app = context;
     submenu_reset(app->submenu);
     submenu_set_header(app->submenu, app->selected_file);
     submenu_add_item(app->submenu, "Devices", ActionDevices, wc_submenu_cb, app);
+    submenu_add_item(app->submenu, "Networks sought", ActionNetworks, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Rename", ActionRename, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Delete", ActionDelete, wc_submenu_cb, app);
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
@@ -286,13 +297,13 @@ bool wc_scene_file_actions_on_event(void *context, SceneManagerEvent event) {
     }
     switch (event.event) {
         case ActionDevices:
-            if (!app->browse_census) {
-                app->browse_census = malloc(sizeof(WcCensus));
-            }
-            if (app->browse_census &&
-                wc_capture_service_load(&app->store, app->selected_file, &app->browse_meta,
-                                        app->browse_census)) {
+            if (ensure_browse_loaded(app)) {
                 scene_manager_next_scene(app->scene_manager, WcSceneDevices);
+            }
+            return true;
+        case ActionNetworks:
+            if (ensure_browse_loaded(app)) {
+                scene_manager_next_scene(app->scene_manager, WcSceneNetworks);
             }
             return true;
         case ActionRename:
@@ -349,6 +360,43 @@ bool wc_scene_devices_on_event(void *context, SceneManagerEvent event) {
 }
 
 void wc_scene_devices_on_exit(void *context) {
+    WcApp *app = context;
+    submenu_reset(app->submenu);
+}
+
+// ---------------------------------------------------------------------------
+// Networks sought (directed SSIDs devices are probing for)
+// ---------------------------------------------------------------------------
+
+void wc_scene_networks_on_enter(void *context) {
+    WcApp *app = context;
+    submenu_reset(app->submenu);
+    submenu_set_header(app->submenu, "Networks sought");
+    if (app->browse_census) {
+        WcSsidTally *t = malloc(sizeof(WcSsidTally) * WC_MAX_LIST);
+        if (t) {
+            uint16_t n = wc_census_ssid_tally(app->browse_census, t, WC_MAX_LIST);
+            for (uint16_t i = 0; i < n && i < WC_MAX_LIST; i++) {
+                char label[64];
+                snprintf(label, sizeof(label), "%s (%u)", t[i].ssid, t[i].devices);
+                submenu_add_item(app->submenu, label, i, wc_submenu_cb, app);
+            }
+            if (n == 0) {
+                submenu_add_item(app->submenu, "(none sought)", WC_MAX_LIST, wc_submenu_cb, app);
+            }
+            free(t);
+        }
+    }
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+}
+
+bool wc_scene_networks_on_event(void *context, SceneManagerEvent event) {
+    UNUSED(context);
+    UNUSED(event);
+    return false;
+}
+
+void wc_scene_networks_on_exit(void *context) {
     WcApp *app = context;
     submenu_reset(app->submenu);
 }

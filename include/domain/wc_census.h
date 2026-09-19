@@ -18,7 +18,19 @@ typedef struct {
     uint16_t random_count;  // devices with a randomized MAC (not linkable across sessions)
     uint8_t pct_random;     // random_count as a percentage of total
     uint16_t by_type[5];    // indexed by WcDeviceType
+    uint16_t networks;      // distinct directed SSIDs devices are probing for
 } WcCensusStats;
+
+// One "network a device is looking for": a directed probe SSID and how many devices sought it.
+typedef struct {
+    char ssid[WC_SSID_MAX_LEN + 1];
+    uint16_t devices;
+} WcSsidTally;
+
+// Tally the distinct directed SSIDs across the census. With out != NULL, fills up to `cap`
+// entries (SSID + device count). Returns the number of distinct SSIDs (may exceed `cap`;
+// pass out=NULL, cap=0 to only count).
+uint16_t wc_census_ssid_tally(const WcCensus *c, WcSsidTally *out, uint16_t cap);
 
 void wc_census_init(WcCensus *c);
 

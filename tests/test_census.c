@@ -107,8 +107,36 @@ static void test_table_full_drops(void) {
     assert(c.dropped == 5);
 }
 
+static void test_ssid_tally(void) {
+    WcCensus c;
+    wc_census_init(&c);
+    uint8_t m1[6] = {0x00, 0x1B, 0x21, 0, 0, 1};
+    uint8_t m2[6] = {0x00, 0x1B, 0x21, 0, 0, 2};
+    uint8_t m3[6] = {0x00, 0x1B, 0x21, 0, 0, 3};
+    WcObservation a = obs_of(m1, -50, "HomeA", false);
+    WcObservation b = obs_of(m2, -50, "HomeA", false); // same net as a
+    WcObservation d = obs_of(m3, -50, "HomeB", false);
+    wc_census_observe(&c, &a, 1);
+    wc_census_observe(&c, &b, 1);
+    wc_census_observe(&c, &d, 1);
+
+    WcCensusStats s = wc_census_stats(&c);
+    assert(s.networks == 2); // HomeA, HomeB
+
+    WcSsidTally t[8];
+    uint16_t n = wc_census_ssid_tally(&c, t, 8);
+    assert(n == 2);
+    // HomeA sought by 2 devices, HomeB by 1 (order: first appearance)
+    assert(strcmp(t[0].ssid, "HomeA") == 0 && t[0].devices == 2);
+    assert(strcmp(t[1].ssid, "HomeB") == 0 && t[1].devices == 1);
+
+    // count-only mode
+    assert(wc_census_ssid_tally(&c, NULL, 0) == 2);
+}
+
 int main(void) {
     test_same_mac_is_one_device();
+    test_ssid_tally();
     test_ssid_links_rotating_random_macs();
     test_random_without_ssid_never_merges();
     test_ap_not_linked_to_client_by_ssid();

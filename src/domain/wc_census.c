@@ -33,7 +33,9 @@ static WcSignature *find_client_by_ssid(WcCensus *c, const char *ssid) {
 
 WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t now) {
     WcSignature *existing = find_by_mac(c, obs->mac);
-    if (!existing && !obs->is_beacon) {
+    // SSID linking only re-attaches a ROTATING (randomized) MAC to a device already seen; a
+    // stable MAC is its own identity and must never be merged with another by a shared SSID.
+    if (!existing && obs->mac_random && !obs->is_beacon) {
         existing = find_client_by_ssid(c, obs->probed_ssid);
     }
     if (existing) {
@@ -67,5 +69,44 @@ WcCensusStats wc_census_stats(const WcCensus *c) {
     if (s.total > 0) {
         s.pct_random = (uint8_t)((s.random_count * 100u) / s.total);
     }
+    s.networks = wc_census_ssid_tally(c, NULL, 0);
     return s;
+}
+
+uint16_t wc_census_ssid_tally(const WcCensus *c, WcSsidTally *out, uint16_t cap) {
+    uint16_t distinct = 0;
+    for (uint16_t i = 0; i < c->count; i++) {
+        const WcSignature *d = &c->devices[i];
+        for (uint8_t j = 0; j < d->ssid_count; j++) {
+            const char *ssid = d->ssids[j];
+            // Already tallied this SSID (from an earlier device or slot)?
+            bool seen = false;
+            for (uint16_t pi = 0; pi < i && !seen; pi++) {
+                if (wc_signature_has_ssid(&c->devices[pi], ssid)) {
+                    seen = true;
+                }
+            }
+            for (uint8_t pj = 0; pj < j && !seen; pj++) {
+                if (strncmp(d->ssids[pj], ssid, WC_SSID_MAX_LEN) == 0) {
+                    seen = true;
+                }
+            }
+            if (seen) {
+                continue;
+            }
+            uint16_t devices = 0;
+            for (uint16_t k = 0; k < c->count; k++) {
+                if (wc_signature_has_ssid(&c->devices[k], ssid)) {
+                    devices++;
+                }
+            }
+            if (out != NULL && distinct < cap) {
+                strncpy(out[distinct].ssid, ssid, WC_SSID_MAX_LEN);
+                out[distinct].ssid[WC_SSID_MAX_LEN] = '\0';
+                out[distinct].devices = devices;
+            }
+            distinct++;
+        }
+    }
+    return distinct;
 }
