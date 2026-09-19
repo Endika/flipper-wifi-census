@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.3](https://github.com/Endika/flipper-wifi-census/compare/v0.1.2...v0.1.3) (2026-09-19)
+
+
+### Features
+
+* label stable-MAC devices by vendor via a verified OUI table ([df34605](https://github.com/Endika/flipper-wifi-census/commit/df3460577050d46df6fd6b446f894122e13d252b))
+* merge two captures into an accumulated census ([3ff7ac1](https://github.com/Endika/flipper-wifi-census/commit/3ff7ac1357c47c3dff8edecc4cdf08a4d9807c0c))
+* prefill a timestamped default name when saving a capture ([2e5803d](https://github.com/Endika/flipper-wifi-census/commit/2e5803d7659e7e02abcf8c720591fb44cf41c47b))
+* surface networks devices probe for and drop the AP counter ([9768291](https://github.com/Endika/flipper-wifi-census/commit/9768291741b47447c954079407a9059f66d64fa1))
+
 ## [0.1.2](https://github.com/Endika/flipper-wifi-census/compare/v0.1.1...v0.1.2) (2026-09-19)
 
 
