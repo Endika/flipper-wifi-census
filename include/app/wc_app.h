@@ -73,6 +73,8 @@ typedef struct {
     char list_names[WC_MAX_LIST][WC_TEXT_BUF_SIZE];
     uint16_t list_count;
     const char *list_ext; // extension filter for the current file listing
+
+    char debug_buf[512]; // rolling raw serial lines for the Serial debug view
 } WcApp;
 
 // Entry point body (called from main.c). Runs the whole app and returns 0.
