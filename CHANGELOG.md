@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.6](https://github.com/Endika/flipper-wifi-census/compare/v0.1.5...v0.1.6) (2026-09-19)
+
+
+### Bug Fixes
+
+* merge dedups by exact MAC first, matching live-session behavior ([5acde18](https://github.com/Endika/flipper-wifi-census/commit/5acde18e3df0985a0df492712f0b3289706bac6b))
+* shrink census memory so merge/compare/import fit the FAP heap ([a1d897b](https://github.com/Endika/flipper-wifi-census/commit/a1d897bb90b138f582e53aea1adf57980eb412b0))
+
 ## [0.1.5](https://github.com/Endika/flipper-wifi-census/compare/v0.1.4...v0.1.5) (2026-09-19)
 
 
