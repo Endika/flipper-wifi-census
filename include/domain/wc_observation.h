@@ -11,6 +11,7 @@ typedef enum {
     WcDeviceLaptop,
     WcDeviceIot,
     WcDeviceAp,
+    WcDeviceTypeCount,
 } WcDeviceType;
 
 typedef enum {

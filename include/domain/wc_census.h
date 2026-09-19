@@ -17,8 +17,8 @@ typedef struct {
     uint16_t unique_stable; // devices with a stable (non-random) MAC
     uint16_t random_count;  // devices with a randomized MAC (not linkable across sessions)
     uint8_t pct_random;     // random_count as a percentage of total
-    uint16_t by_type[5];    // indexed by WcDeviceType
-    uint16_t networks;      // distinct directed SSIDs devices are probing for
+    uint16_t by_type[WcDeviceTypeCount]; // indexed by WcDeviceType
+    uint16_t networks;                   // distinct directed SSIDs devices are probing for
 } WcCensusStats;
 
 // One "network a device is looking for": a directed probe SSID and how many devices sought it.

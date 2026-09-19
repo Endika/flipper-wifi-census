@@ -62,7 +62,7 @@ WcCensusStats wc_census_stats(const WcCensus *c) {
         } else {
             s.unique_stable++;
         }
-        if ((unsigned)d->type < 5) {
+        if ((unsigned)d->type < WcDeviceTypeCount) {
             s.by_type[d->type]++;
         }
     }
@@ -114,13 +114,19 @@ uint16_t wc_census_ssid_tally(const WcCensus *c, WcSsidTally *out, uint16_t cap)
 // Find a dst device that a src device should merge into: a stable MAC matches by MAC; a
 // randomized src device matches by any shared directed SSID with a non-AP dst device.
 static WcSignature *find_merge_target(WcCensus *dst, const WcSignature *sd) {
-    if (!sd->mac_random) {
-        return find_by_mac(dst, sd->mac);
+    // Exact MAC equality is the same device regardless of the random bit — try it first, as a
+    // live session's dedup does, so merging same-day captures does not double-count a phone
+    // that kept one randomized MAC. Only then fall back to shared-SSID linking (randoms).
+    WcSignature *m = find_by_mac(dst, sd->mac);
+    if (m) {
+        return m;
     }
-    for (uint8_t j = 0; j < sd->ssid_count; j++) {
-        WcSignature *m = find_client_by_ssid(dst, sd->ssids[j]);
-        if (m) {
-            return m;
+    if (sd->mac_random) {
+        for (uint8_t j = 0; j < sd->ssid_count; j++) {
+            m = find_client_by_ssid(dst, sd->ssids[j]);
+            if (m) {
+                return m;
+            }
         }
     }
     return NULL;
