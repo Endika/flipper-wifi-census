@@ -29,8 +29,8 @@ struct WcSerialFuri {
 
 // ISR context: pull each received byte and hand it to the worker via the stream buffer.
 static void rx_isr(FuriHalSerialHandle *handle, FuriHalSerialRxEvent event, void *context) {
-    WcSerialFuri *s = context;
     if (event & FuriHalSerialRxEventData) {
+        WcSerialFuri *s = context;
         uint8_t b = furi_hal_serial_async_rx(handle);
         furi_stream_buffer_send(s->stream, &b, 1, 0);
         furi_thread_flags_set(furi_thread_get_id(s->thread), WORKER_FLAG_DATA);

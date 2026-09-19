@@ -165,6 +165,7 @@ linter:
 		--suppress=unusedFunction:main.c \
 		--suppress=checkersReport \
 		--suppress=normalCheckLevelMaxBranches \
+		--suppress=nullPointerOutOfMemory \
 		src/domain/wc_version_info.c \
 		src/domain/wc_observation.c \
 		src/domain/wc_signature.c \
@@ -178,6 +179,13 @@ linter:
 		src/application/wc_capture_service.c \
 		src/application/wc_compare_service.c \
 		src/application/wc_known_service.c \
+		src/platform/wc_clock_furi.c \
+		src/platform/wc_store_furi.c \
+		src/platform/wc_serial_furi.c \
+		src/app/wc_app.c \
+		src/scenes/wc_scene.c \
+		src/scenes/wc_scenes.c \
+		main.c \
 		tests/test_smoke.c \
 		tests/test_signature.c \
 		tests/test_census.c \
