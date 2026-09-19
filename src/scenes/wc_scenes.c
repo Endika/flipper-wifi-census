@@ -154,8 +154,10 @@ static void scan_timer_cb(void *context) {
 
 static void scan_render(WcApp *app) {
     WcCensusStats s = wc_scan_stats(&app->scan);
-    char tail[32];
-    if (app->scan.census.dropped > 0) {
+    char tail[40];
+    if (app->autosave) {
+        snprintf(tail, sizeof(tail), "Auto-save: file %u", app->autosave_idx);
+    } else if (app->scan.census.dropped > 0) {
         snprintf(tail, sizeof(tail), "FULL +%u dropped", app->scan.census.dropped);
     } else {
         snprintf(tail, sizeof(tail), "Back = stop & save");
@@ -171,18 +173,53 @@ static void scan_render(WcApp *app) {
     widget_add_string_multiline_element(app->widget, 0, 0, AlignLeft, AlignTop, FontSecondary, buf);
 }
 
-void wc_scene_scan_on_enter(void *context) {
-    WcApp *app = context;
-    wc_census_free(&app->scan.census); // release any prior scan before a new one
-    wc_scan_init(&app->scan, app->clock);
-    // Reserve the whole array up front: a busy scan then never reallocs (whose transient 2x
-    // copy is what exhausted the heap and rebooted the Flipper mid-scan).
-    wc_census_reserve(&app->scan.census, WC_CENSUS_MAX_DEVICES);
-    app->scan_started = wc_clock_now(&app->clock);
-
+static void scan_serial_start(WcApp *app) {
     app->serial = wc_serial_furi_alloc(app->baud);
     WcSerialPort port = wc_serial_furi_port(app->serial);
     port.start(port.self, wc_scan_on_line, &app->scan);
+}
+
+static void scan_serial_stop(WcApp *app) {
+    if (app->serial) {
+        WcSerialPort port = wc_serial_furi_port(app->serial);
+        port.stop(port.self);
+        wc_serial_furi_free(app->serial);
+        app->serial = NULL;
+    }
+}
+
+static void scan_reset_census(WcApp *app) {
+    wc_census_free(&app->scan.census);
+    wc_scan_init(&app->scan, app->clock);
+    // Reserve up front: a busy scan then never reallocs (the transient 2x copy is what
+    // exhausted the heap and rebooted the Flipper mid-scan).
+    wc_census_reserve(&app->scan.census, WC_CENSUS_MAX_DEVICES);
+}
+
+// Save the current census as "<base>_<idx>" (used by auto-save). Serial must be stopped so the
+// worker thread is not writing the census while we read it.
+static void scan_save_chunk(WcApp *app) {
+    char name[WC_TEXT_BUF_SIZE + 8];
+    snprintf(name, sizeof(name), "%s_%u", app->autosave_base, app->autosave_idx);
+    WcCaptureMeta meta;
+    memset(&meta, 0, sizeof(meta));
+    strncpy(meta.label, name, WC_LABEL_MAX);
+    meta.epoch = app->scan_started;
+    meta.duration_s = wc_clock_now(&app->clock) - app->scan_started;
+    meta.channels_mask = 0x3FFF;
+    wc_capture_service_save(&app->store, name, &meta, &app->scan.census);
+    app->autosave_idx++;
+}
+
+void wc_scene_scan_on_enter(void *context) {
+    WcApp *app = context;
+    scan_reset_census(app);
+    app->scan_started = wc_clock_now(&app->clock);
+    if (app->autosave) {
+        wc_default_name(app->scan_started, "auto", app->autosave_base, sizeof(app->autosave_base));
+        app->autosave_idx = 1;
+    }
+    scan_serial_start(app);
 
     scan_render(app);
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewWidget);
@@ -195,11 +232,30 @@ bool wc_scene_scan_on_event(void *context, SceneManagerEvent event) {
     WcApp *app = context;
     if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventScanTick) {
         scan_render(app);
+        // Auto-save rotation: near the ceiling, save this chunk and start a fresh census so a
+        // huge venue spans several files instead of dropping devices. Stop serial first so the
+        // worker thread is not touching the census while we save + reset it.
+        if (app->autosave && app->scan.census.count >= WC_AUTOSAVE_ROTATE_AT) {
+            scan_serial_stop(app);
+            scan_save_chunk(app);
+            scan_reset_census(app);
+            scan_serial_start(app);
+        }
         return true;
     }
     if (event.type == SceneManagerEventTypeBack) {
-        // Stop and go to the save screen instead of dropping the scan.
-        scene_manager_next_scene(app->scene_manager, WcSceneSave);
+        if (app->autosave) {
+            // Save the final partial chunk automatically and return to the menu.
+            scan_serial_stop(app);
+            if (app->scan.census.count > 0) {
+                scan_save_chunk(app);
+            }
+            wc_census_free(&app->scan.census);
+            scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
+        } else {
+            // Stop and go to the save screen instead of dropping the scan.
+            scene_manager_next_scene(app->scene_manager, WcSceneSave);
+        }
         return true;
     }
     return false;
@@ -212,12 +268,7 @@ void wc_scene_scan_on_exit(void *context) {
         furi_timer_free(app->scan_timer);
         app->scan_timer = NULL;
     }
-    if (app->serial) {
-        WcSerialPort port = wc_serial_furi_port(app->serial);
-        port.stop(port.self);
-        wc_serial_furi_free(app->serial);
-        app->serial = NULL;
-    }
+    scan_serial_stop(app);
 }
 
 // ---------------------------------------------------------------------------
@@ -806,6 +857,15 @@ static void settings_baud_changed(VariableItem *item) {
     app->baud = k_baud_values[idx];
 }
 
+static const char *const k_onoff[] = {"Off", "On"};
+
+static void settings_autosave_changed(VariableItem *item) {
+    WcApp *app = variable_item_get_context(item);
+    uint8_t idx = variable_item_get_current_value_index(item);
+    variable_item_set_current_value_text(item, k_onoff[idx]);
+    app->autosave = (idx == 1);
+}
+
 void wc_scene_settings_on_enter(void *context) {
     WcApp *app = context;
     variable_item_list_reset(app->var_item_list);
@@ -814,6 +874,13 @@ void wc_scene_settings_on_enter(void *context) {
     uint8_t idx = (app->baud == k_baud_values[1]) ? 1 : 0;
     variable_item_set_current_value_index(item, idx);
     variable_item_set_current_value_text(item, k_baud_names[idx]);
+
+    VariableItem *as = variable_item_list_add(app->var_item_list, "Auto-save (rotate)", 2,
+                                              settings_autosave_changed, app);
+    uint8_t as_idx = app->autosave ? 1 : 0;
+    variable_item_set_current_value_index(as, as_idx);
+    variable_item_set_current_value_text(as, k_onoff[as_idx]);
+
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewVarList);
 }
 

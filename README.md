@@ -87,6 +87,14 @@ airodump) can be turned into a census, on the Flipper or on a laptop:
   **Import pcap** in the menu (on-device import reads files up to 40 KB; use the PC tool for
   larger ones).
 
+## Auto-save (rotate) for big venues
+
+Turn on **Settings → Auto-save (rotate)** and a scan that fills up saves the current file and
+starts a fresh one automatically (`auto_YYYYMMDD_HHMM_1`, `_2`, …), instead of dropping
+devices. Pressing Back saves the final chunk too. You then merge all the pieces on a PC (see
+below) into one census of the whole venue. A brief moment is lost at each rotation while the
+file is written.
+
 ## Combine many captures on a PC (beyond the device limit)
 
 A single Flipper scan or merge is capped at 320 devices (its RAM). To census a huge venue,
