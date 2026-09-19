@@ -29,19 +29,33 @@ help:
 # Each tests/test_*.c is its own suite with its own `main`, linked into test_wc_<suite>;
 # `make test` runs all of them. Add a suite by appending its .o list and its binary below.
 OBJS_SMOKE = wc_version_info.o test_smoke.o
-TEST_BINS = test_wc_smoke
+OBJS_SIGNATURE = wc_observation.o wc_signature.o test_signature.o
+TEST_BINS = test_wc_smoke test_wc_signature
 
 test: $(TEST_BINS)
 	./test_wc_smoke
+	./test_wc_signature
 
 test_wc_smoke: $(OBJS_SMOKE)
 	$(CC) $(CFLAGS) -o test_wc_smoke $(OBJS_SMOKE)
+
+test_wc_signature: $(OBJS_SIGNATURE)
+	$(CC) $(CFLAGS) -o test_wc_signature $(OBJS_SIGNATURE)
 
 wc_version_info.o: src/domain/wc_version_info.c include/domain/wc_version_info.h include/version.h
 	$(CC) $(CFLAGS) -c src/domain/wc_version_info.c -o wc_version_info.o
 
 test_smoke.o: tests/test_smoke.c include/domain/wc_version_info.h
 	$(CC) $(CFLAGS) -c tests/test_smoke.c -o test_smoke.o
+
+wc_observation.o: src/domain/wc_observation.c include/domain/wc_observation.h
+	$(CC) $(CFLAGS) -c src/domain/wc_observation.c -o wc_observation.o
+
+wc_signature.o: src/domain/wc_signature.c include/domain/wc_signature.h include/domain/wc_observation.h
+	$(CC) $(CFLAGS) -c src/domain/wc_signature.c -o wc_signature.o
+
+test_signature.o: tests/test_signature.c include/domain/wc_signature.h include/domain/wc_observation.h
+	$(CC) $(CFLAGS) -c tests/test_signature.c -o test_signature.o
 
 # --- format / lint ---
 FORMAT_FILES := $(shell git ls-files '*.c' '*.h' 2>/dev/null)
@@ -59,7 +73,10 @@ linter:
 		--suppress=missingIncludeSystem \
 		--suppress=unusedFunction:main.c \
 		src/domain/wc_version_info.c \
-		tests/test_smoke.c
+		src/domain/wc_observation.c \
+		src/domain/wc_signature.c \
+		tests/test_smoke.c \
+		tests/test_signature.c
 
 # --- build the .fap via the firmware tree (ufbt/fbt; not available in this sandbox) ---
 prepare:
