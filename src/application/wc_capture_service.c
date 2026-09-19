@@ -11,35 +11,42 @@ bool wc_capture_service_save(const WcStorePort *store, const char *basename,
     if (basename == NULL || strlen(basename) == 0 || strlen(basename) > WC_BASENAME_MAX) {
         return false;
     }
+    char name[WC_BASENAME_MAX + 8];
 
-    // Binary capture.
-    size_t bin_len = wc_capture_size(c);
-    uint8_t *bin = malloc(bin_len);
-    if (!bin) {
+    // Binary capture, streamed record-by-record so a big census never needs a whole-file
+    // buffer (which would double its RAM and OOM the FAP).
+    snprintf(name, sizeof(name), "%s%s", basename, WC_CAP_EXT);
+    WcFileWriter *w = store->open_write(store->self, name);
+    if (!w) {
         return false;
     }
-    bool ok = (wc_capture_write(bin, bin_len, meta, c) == bin_len);
-    if (ok) {
-        char name[WC_BASENAME_MAX + 8];
-        snprintf(name, sizeof(name), "%s%s", basename, WC_CAP_EXT);
-        ok = store->write_file(store->self, name, bin, bin_len);
+    uint8_t rec[256]; // >= header size and record size
+    bool ok = true;
+    wc_capture_put_header(rec, meta, c->count);
+    ok = store->write(w, rec, wc_capture_header_size());
+    for (uint16_t i = 0; ok && i < c->count; i++) {
+        wc_capture_put_record(rec, &c->devices[i]);
+        ok = store->write(w, rec, wc_capture_record_size());
     }
-    free(bin);
+    ok = store->close(w) && ok;
     if (!ok) {
         return false;
     }
 
-    // CSV sidecar: size it, render it, write it.
-    size_t csv_len = wc_capture_to_csv(NULL, 0, meta, c);
-    char *csv = malloc(csv_len + 1);
-    if (!csv) {
+    // CSV sidecar, streamed row-by-row.
+    snprintf(name, sizeof(name), "%s%s", basename, WC_CSV_EXT);
+    w = store->open_write(store->self, name);
+    if (!w) {
         return false;
     }
-    wc_capture_to_csv(csv, csv_len + 1, meta, c);
-    char name[WC_BASENAME_MAX + 8];
-    snprintf(name, sizeof(name), "%s%s", basename, WC_CSV_EXT);
-    ok = store->write_file(store->self, name, (const uint8_t *)csv, csv_len);
-    free(csv);
+    char row[512];
+    wc_capture_csv_header(row, sizeof(row));
+    ok = store->write(w, (const uint8_t *)row, strlen(row));
+    for (uint16_t i = 0; ok && i < c->count; i++) {
+        wc_capture_csv_row(row, sizeof(row), &c->devices[i]);
+        ok = store->write(w, (const uint8_t *)row, strlen(row));
+    }
+    ok = store->close(w) && ok;
     return ok;
 }
 

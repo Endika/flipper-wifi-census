@@ -20,6 +20,19 @@ typedef struct {
 // Exact byte size a binary capture of `c` will occupy.
 size_t wc_capture_size(const WcCensus *c);
 
+// Fixed serialized sizes, for streaming a capture record-by-record (no whole-file buffer).
+size_t wc_capture_header_size(void);
+size_t wc_capture_record_size(void);
+
+// Serialize just the header / one device record into `out` (>= the sizes above).
+void wc_capture_put_header(uint8_t *out, const WcCaptureMeta *meta, uint16_t count);
+void wc_capture_put_record(uint8_t *out, const WcSignature *d);
+
+// CSV, one piece at a time (for streaming): the header line and one device row. Each writes a
+// NUL-terminated string into `out`/`cap` and returns the full length needed (snprintf-style).
+size_t wc_capture_csv_header(char *out, size_t cap);
+size_t wc_capture_csv_row(char *out, size_t cap, const WcSignature *d);
+
 // Serialize meta + census into `buf` (little-endian, endian-independent). Returns bytes
 // written, or 0 if `cap` is too small.
 size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, const WcCensus *c);

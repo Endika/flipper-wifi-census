@@ -43,12 +43,16 @@ size_t wc_capture_size(const WcCensus *c) {
     return WC_HEADER_SIZE + (size_t)c->count * WC_RECORD_V2;
 }
 
-size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, const WcCensus *c) {
-    size_t need = wc_capture_size(c);
-    if (cap < need) {
-        return 0;
-    }
-    uint8_t *p = buf;
+size_t wc_capture_header_size(void) {
+    return WC_HEADER_SIZE;
+}
+
+size_t wc_capture_record_size(void) {
+    return WC_RECORD_V2;
+}
+
+void wc_capture_put_header(uint8_t *out, const WcCaptureMeta *meta, uint16_t count) {
+    uint8_t *p = out;
     memcpy(p, k_magic, 4);
     p += 4;
     put_u16(p, WC_CAP_VERSION);
@@ -63,33 +67,45 @@ size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, con
     put_u16(p, meta->channels_mask);
     p += 2;
     *p++ = meta->mode;
-    put_u16(p, c->count);
-    p += 2;
+    put_u16(p, count);
+}
 
-    for (uint16_t i = 0; i < c->count; i++) {
-        const WcSignature *d = &c->devices[i];
-        memcpy(p, d->mac, 6);
-        p += 6;
-        *p++ = d->mac_random ? 1 : 0;
-        *p++ = (uint8_t)d->type;
-        *p++ = (uint8_t)d->rssi_max;
-        *p++ = d->ssid_count;
-        put_u32(p, d->obs_count);
-        p += 4;
-        put_u32(p, d->first_seen);
-        p += 4;
-        put_u32(p, d->last_seen);
-        p += 4;
-        for (uint8_t s = 0; s < WC_SIG_MAX_SSIDS; s++) {
-            memset(p, 0, WC_SSID_SLOT);
-            if (s < d->ssid_count) {
-                strncpy((char *)p, d->ssids[s], WC_SSID_MAX_LEN);
-            }
-            p += WC_SSID_SLOT;
+void wc_capture_put_record(uint8_t *out, const WcSignature *d) {
+    uint8_t *p = out;
+    memcpy(p, d->mac, 6);
+    p += 6;
+    *p++ = d->mac_random ? 1 : 0;
+    *p++ = (uint8_t)d->type;
+    *p++ = (uint8_t)d->rssi_max;
+    *p++ = d->ssid_count;
+    put_u32(p, d->obs_count);
+    p += 4;
+    put_u32(p, d->first_seen);
+    p += 4;
+    put_u32(p, d->last_seen);
+    p += 4;
+    for (uint8_t s = 0; s < WC_SIG_MAX_SSIDS; s++) {
+        memset(p, 0, WC_SSID_SLOT);
+        if (s < d->ssid_count) {
+            strncpy((char *)p, d->ssids[s], WC_SSID_MAX_LEN);
         }
-        put_u32(p, d->ie_hash); // v2 fields
-        p += 4;
-        *p++ = (uint8_t)d->ie_vendor;
+        p += WC_SSID_SLOT;
+    }
+    put_u32(p, d->ie_hash); // v2 fields
+    p += 4;
+    *p++ = (uint8_t)d->ie_vendor;
+}
+
+size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, const WcCensus *c) {
+    size_t need = wc_capture_size(c);
+    if (cap < need) {
+        return 0;
+    }
+    wc_capture_put_header(buf, meta, c->count);
+    uint8_t *p = buf + WC_HEADER_SIZE;
+    for (uint16_t i = 0; i < c->count; i++) {
+        wc_capture_put_record(p, &c->devices[i]);
+        p += WC_RECORD_V2;
     }
     return need;
 }
@@ -184,37 +200,49 @@ static void csv_appendf(char *out, size_t cap, size_t *len, const char *fmt, ...
     }
 }
 
-size_t wc_capture_to_csv(char *out, size_t cap, const WcCaptureMeta *meta, const WcCensus *c) {
+size_t wc_capture_csv_header(char *out, size_t cap) {
     size_t len = 0;
     if (cap > 0) {
         out[0] = '\0';
     }
-    csv_appendf(out, cap, &len, "# label=%s epoch=%lu duration_s=%lu\n", meta->label,
-                (unsigned long)meta->epoch, (unsigned long)meta->duration_s);
     csv_appendf(
         out, cap, &len,
         "mac,random,type,vendor,fingerprint,rssi_max,obs_count,first_seen,last_seen,ssids\n");
-    for (uint16_t i = 0; i < c->count; i++) {
-        const WcSignature *d = &c->devices[i];
-        csv_appendf(out, cap, &len,
-                    "%02X:%02X:%02X:%02X:%02X:%02X,%d,%s,%s,%08lx,%d,%lu,%lu,%lu,\"", d->mac[0],
-                    d->mac[1], d->mac[2], d->mac[3], d->mac[4], d->mac[5], d->mac_random ? 1 : 0,
-                    wc_device_type_name(d->type), wc_signature_vendor(d), (unsigned long)d->ie_hash,
-                    d->rssi_max, (unsigned long)d->obs_count, (unsigned long)d->first_seen,
-                    (unsigned long)d->last_seen);
-        for (uint8_t s = 0; s < d->ssid_count; s++) {
-            // Escape embedded quotes so the quoted SSID field stays valid CSV.
-            const char *ss = d->ssids[s];
-            csv_appendf(out, cap, &len, "%s", s ? ";" : "");
-            for (const char *ch = ss; *ch; ch++) {
-                if (*ch == '"') {
-                    csv_appendf(out, cap, &len, "\"\"");
-                } else {
-                    csv_appendf(out, cap, &len, "%c", *ch);
-                }
+    return len;
+}
+
+size_t wc_capture_csv_row(char *out, size_t cap, const WcSignature *d) {
+    size_t len = 0;
+    if (cap > 0) {
+        out[0] = '\0';
+    }
+    csv_appendf(out, cap, &len, "%02X:%02X:%02X:%02X:%02X:%02X,%d,%s,%s,%08lx,%d,%lu,%lu,%lu,\"",
+                d->mac[0], d->mac[1], d->mac[2], d->mac[3], d->mac[4], d->mac[5],
+                d->mac_random ? 1 : 0, wc_device_type_name(d->type), wc_signature_vendor(d),
+                (unsigned long)d->ie_hash, d->rssi_max, (unsigned long)d->obs_count,
+                (unsigned long)d->first_seen, (unsigned long)d->last_seen);
+    for (uint8_t s = 0; s < d->ssid_count; s++) {
+        // Escape embedded quotes so the quoted SSID field stays valid CSV.
+        const char *ss = d->ssids[s];
+        csv_appendf(out, cap, &len, "%s", s ? ";" : "");
+        for (const char *ch = ss; *ch; ch++) {
+            if (*ch == '"') {
+                csv_appendf(out, cap, &len, "\"\"");
+            } else {
+                csv_appendf(out, cap, &len, "%c", *ch);
             }
         }
-        csv_appendf(out, cap, &len, "\"\n");
+    }
+    csv_appendf(out, cap, &len, "\"\n");
+    return len;
+}
+
+size_t wc_capture_to_csv(char *out, size_t cap, const WcCaptureMeta *meta, const WcCensus *c) {
+    (void)meta;
+    size_t len = wc_capture_csv_header(out, cap);
+    for (uint16_t i = 0; i < c->count; i++) {
+        len += wc_capture_csv_row((len < cap) ? out + len : out + cap, (len < cap) ? cap - len : 0,
+                                  &c->devices[i]);
     }
     return len;
 }

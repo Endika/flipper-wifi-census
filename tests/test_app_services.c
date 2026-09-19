@@ -102,6 +102,46 @@ static uint16_t fake_list(void *self, WcStoreNameFn cb, void *ctx) {
     return n;
 }
 
+struct WcFileWriter {
+    FakeFile *f;
+};
+
+static WcFileWriter *fake_open_write(void *self, const char *name) {
+    FakeStore *s = self;
+    FakeFile *f = fake_find(s, name);
+    if (!f) {
+        for (int i = 0; i < FAKE_MAX_FILES; i++) {
+            if (!s->files[i].used) {
+                f = &s->files[i];
+                f->used = true;
+                snprintf(f->name, sizeof(f->name), "%s", name);
+                break;
+            }
+        }
+    }
+    if (!f) {
+        return NULL;
+    }
+    f->len = 0;
+    WcFileWriter *w = malloc(sizeof(WcFileWriter));
+    w->f = f;
+    return w;
+}
+
+static bool fake_write_chunk(WcFileWriter *w, const uint8_t *data, size_t len) {
+    if (w->f->len + len > FAKE_MAX_BYTES) {
+        return false;
+    }
+    memcpy(w->f->data + w->f->len, data, len);
+    w->f->len += len;
+    return true;
+}
+
+static bool fake_close_write(WcFileWriter *w) {
+    free(w);
+    return true;
+}
+
 static WcStorePort fake_store_port(FakeStore *s) {
     WcStorePort p = {.self = s,
                      .write_file = fake_write,
@@ -109,7 +149,10 @@ static WcStorePort fake_store_port(FakeStore *s) {
                      .file_size = fake_file_size,
                      .rename_file = fake_rename,
                      .delete_file = fake_delete,
-                     .list = fake_list};
+                     .list = fake_list,
+                     .open_write = fake_open_write,
+                     .write = fake_write_chunk,
+                     .close = fake_close_write};
     return p;
 }
 

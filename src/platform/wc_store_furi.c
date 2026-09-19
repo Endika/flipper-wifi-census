@@ -116,6 +116,44 @@ static bool store_delete(void *self, const char *name) {
     return ok;
 }
 
+struct WcFileWriter {
+    Storage *storage;
+    File *file;
+};
+
+static WcFileWriter *store_open_write(void *self, const char *name) {
+    (void)self;
+    if (!name_is_safe(name)) {
+        return NULL;
+    }
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    storage_common_mkdir(storage, WC_DIR);
+    char path[256];
+    full_path(path, sizeof(path), name);
+    File *file = storage_file_alloc(storage);
+    if (!storage_file_open(file, path, FSAM_WRITE, FSOM_CREATE_ALWAYS)) {
+        storage_file_free(file);
+        furi_record_close(RECORD_STORAGE);
+        return NULL;
+    }
+    WcFileWriter *w = malloc(sizeof(WcFileWriter));
+    w->storage = storage;
+    w->file = file;
+    return w;
+}
+
+static bool store_write_chunk(WcFileWriter *w, const uint8_t *data, size_t len) {
+    return storage_file_write(w->file, data, len) == len;
+}
+
+static bool store_close_write(WcFileWriter *w) {
+    storage_file_close(w->file);
+    storage_file_free(w->file);
+    furi_record_close(RECORD_STORAGE);
+    free(w);
+    return true;
+}
+
 static uint16_t store_list(void *self, WcStoreNameFn cb, void *ctx) {
     (void)self;
     Storage *storage = furi_record_open(RECORD_STORAGE);
@@ -146,6 +184,9 @@ WcStorePort wc_store_furi_port(void) {
         .rename_file = store_rename,
         .delete_file = store_delete,
         .list = store_list,
+        .open_write = store_open_write,
+        .write = store_write_chunk,
+        .close = store_close_write,
     };
     return p;
 }

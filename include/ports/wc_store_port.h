@@ -7,6 +7,10 @@
 // Called once per stored file name during a listing. `name` is valid only for the call.
 typedef void (*WcStoreNameFn)(void *ctx, const char *name);
 
+// Opaque streaming writer, so a large file is written in small chunks without ever holding
+// the whole serialized blob in RAM. Defined by the adapter.
+typedef struct WcFileWriter WcFileWriter;
+
 // Port: persistent storage for capture files and the known-devices db. Names are bare file
 // names within the app's data directory (no paths); the adapter maps them under
 // APP_DATA_PATH and enforces that. Adapter (platform/) wraps furi Storage; tests use an
@@ -21,4 +25,11 @@ typedef struct {
     bool (*rename_file)(void *self, const char *from, const char *to);
     bool (*delete_file)(void *self, const char *name);
     uint16_t (*list)(void *self, WcStoreNameFn cb, void *ctx);
+
+    // Streaming write: open (truncate/create) -> write chunks -> close. `open_write` returns
+    // NULL on failure; `write` returns false on a short/failed write; `close` frees the writer
+    // and returns whether the file closed cleanly.
+    WcFileWriter *(*open_write)(void *self, const char *name);
+    bool (*write)(WcFileWriter *w, const uint8_t *data, size_t len);
+    bool (*close)(WcFileWriter *w);
 } WcStorePort;
