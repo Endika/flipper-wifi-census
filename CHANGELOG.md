@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/Endika/flipper-wifi-census/compare/v0.1.8...v0.1.9) (2026-09-19)
+
+
+### Features
+
+* default merges to merge_* and show dropped count when the census caps ([4df77a3](https://github.com/Endika/flipper-wifi-census/commit/4df77a30123e178ddfdb2082771cd8fca90054e5))
+
 ## [0.1.8](https://github.com/Endika/flipper-wifi-census/compare/v0.1.7...v0.1.8) (2026-09-19)
 
 
