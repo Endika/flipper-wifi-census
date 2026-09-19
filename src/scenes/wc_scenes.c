@@ -85,6 +85,7 @@ typedef enum {
     StartImport,
     StartKnown,
     StartSettings,
+    StartSerialDebug,
     StartAbout,
 } StartItem;
 
@@ -99,6 +100,7 @@ void wc_scene_start_on_enter(void *context) {
     submenu_add_item(app->submenu, "Import pcap", StartImport, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Known devices", StartKnown, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Settings", StartSettings, wc_submenu_cb, app);
+    submenu_add_item(app->submenu, "Serial debug", StartSerialDebug, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "About", StartAbout, wc_submenu_cb, app);
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
 }
@@ -129,6 +131,9 @@ bool wc_scene_start_on_event(void *context, SceneManagerEvent event) {
             return true;
         case StartSettings:
             scene_manager_next_scene(app->scene_manager, WcSceneSettings);
+            return true;
+        case StartSerialDebug:
+            scene_manager_next_scene(app->scene_manager, WcSceneSerialDebug);
             return true;
         case StartAbout:
             scene_manager_next_scene(app->scene_manager, WcSceneAbout);
@@ -893,6 +898,61 @@ bool wc_scene_settings_on_event(void *context, SceneManagerEvent event) {
 void wc_scene_settings_on_exit(void *context) {
     WcApp *app = context;
     variable_item_list_reset(app->var_item_list);
+}
+
+// ---------------------------------------------------------------------------
+// Serial debug (show the raw lines Marauder sends, to learn its format)
+// ---------------------------------------------------------------------------
+
+// Runs in the serial worker thread. Appends the raw line to a rolling buffer; wraps to keep
+// the most recent lines. The GUI timer renders it — a torn read is harmless here.
+static void debug_on_line(void *ctx, const char *line, size_t len) {
+    WcApp *app = ctx;
+    size_t cur = strlen(app->debug_buf);
+    if (cur + len + 2 >= sizeof(app->debug_buf)) {
+        cur = 0; // wrap: drop older lines to keep the newest
+    }
+    size_t room = sizeof(app->debug_buf) - cur - 2;
+    size_t n = len < room ? len : room;
+    memcpy(app->debug_buf + cur, line, n);
+    app->debug_buf[cur + n] = '\n';
+    app->debug_buf[cur + n + 1] = '\0';
+}
+
+void wc_scene_serial_debug_on_enter(void *context) {
+    WcApp *app = context;
+    snprintf(app->debug_buf, sizeof(app->debug_buf), "Waiting for serial...\n");
+    app->serial = wc_serial_furi_alloc(app->baud);
+    WcSerialPort port = wc_serial_furi_port(app->serial);
+    port.start(port.self, debug_on_line, app);
+
+    text_box_reset(app->text_box);
+    text_box_set_font(app->text_box, TextBoxFontText);
+    text_box_set_text(app->text_box, app->debug_buf);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewTextBox);
+
+    app->scan_timer = furi_timer_alloc(scan_timer_cb, FuriTimerTypePeriodic, app);
+    furi_timer_start(app->scan_timer, furi_ms_to_ticks(400));
+}
+
+bool wc_scene_serial_debug_on_event(void *context, SceneManagerEvent event) {
+    if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventScanTick) {
+        WcApp *app = context;
+        text_box_set_text(app->text_box, app->debug_buf);
+        return true;
+    }
+    return false;
+}
+
+void wc_scene_serial_debug_on_exit(void *context) {
+    WcApp *app = context;
+    if (app->scan_timer) {
+        furi_timer_stop(app->scan_timer);
+        furi_timer_free(app->scan_timer);
+        app->scan_timer = NULL;
+    }
+    scan_serial_stop(app);
+    text_box_reset(app->text_box);
 }
 
 // ---------------------------------------------------------------------------

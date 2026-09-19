@@ -87,6 +87,12 @@ airodump) can be turned into a census, on the Flipper or on a laptop:
   **Import pcap** in the menu (on-device import reads files up to 40 KB; use the PC tool for
   larger ones).
 
+## Serial debug
+
+**Settings is for options; the menu's Serial debug** starts the board and shows the raw lines
+Marauder sends over UART, unparsed. Use it to see the exact probe-sniff line format (handy for
+tuning what the live scan can extract, e.g. whether the network name appears in the text).
+
 ## Auto-save (rotate) for big venues
 
 Turn on **Settings → Auto-save (rotate)** and a scan that fills up saves the current file and
