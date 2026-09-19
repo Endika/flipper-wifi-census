@@ -34,7 +34,8 @@ OBJS_CENSUS = wc_observation.o wc_signature.o wc_census.o test_census.o
 OBJS_CODEC = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o test_codec.o
 OBJS_COMPARE = wc_observation.o wc_signature.o wc_census.o wc_compare.o test_compare.o
 OBJS_KNOWN = wc_observation.o wc_signature.o wc_known.o test_known.o
-TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec test_wc_compare test_wc_known
+OBJS_PARSE = wc_observation.o wc_marauder_parse.o test_marauder_parse.o
+TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec test_wc_compare test_wc_known test_wc_parse
 
 test: $(TEST_BINS)
 	./test_wc_smoke
@@ -43,6 +44,7 @@ test: $(TEST_BINS)
 	./test_wc_codec
 	./test_wc_compare
 	./test_wc_known
+	./test_wc_parse
 
 test_wc_smoke: $(OBJS_SMOKE)
 	$(CC) $(CFLAGS) -o test_wc_smoke $(OBJS_SMOKE)
@@ -61,6 +63,9 @@ test_wc_compare: $(OBJS_COMPARE)
 
 test_wc_known: $(OBJS_KNOWN)
 	$(CC) $(CFLAGS) -o test_wc_known $(OBJS_KNOWN)
+
+test_wc_parse: $(OBJS_PARSE)
+	$(CC) $(CFLAGS) -o test_wc_parse $(OBJS_PARSE)
 
 wc_version_info.o: src/domain/wc_version_info.c include/domain/wc_version_info.h include/version.h
 	$(CC) $(CFLAGS) -c src/domain/wc_version_info.c -o wc_version_info.o
@@ -101,6 +106,12 @@ wc_known.o: src/domain/wc_known.c include/domain/wc_known.h include/domain/wc_si
 test_known.o: tests/test_known.c include/domain/wc_known.h include/domain/wc_signature.h
 	$(CC) $(CFLAGS) -c tests/test_known.c -o test_known.o
 
+wc_marauder_parse.o: src/domain/wc_marauder_parse.c include/domain/wc_marauder_parse.h include/domain/wc_observation.h
+	$(CC) $(CFLAGS) -c src/domain/wc_marauder_parse.c -o wc_marauder_parse.o
+
+test_marauder_parse.o: tests/test_marauder_parse.c include/domain/wc_marauder_parse.h include/domain/wc_observation.h
+	$(CC) $(CFLAGS) -c tests/test_marauder_parse.c -o test_marauder_parse.o
+
 # --- format / lint ---
 FORMAT_FILES := $(shell git ls-files '*.c' '*.h' 2>/dev/null)
 ifeq ($(strip $(FORMAT_FILES)),)
@@ -130,12 +141,14 @@ linter:
 		src/domain/wc_capture_codec.c \
 		src/domain/wc_compare.c \
 		src/domain/wc_known.c \
+		src/domain/wc_marauder_parse.c \
 		tests/test_smoke.c \
 		tests/test_signature.c \
 		tests/test_census.c \
 		tests/test_codec.c \
 		tests/test_compare.c \
-		tests/test_known.c
+		tests/test_known.c \
+		tests/test_marauder_parse.c
 
 # --- build the .fap via the firmware tree (ufbt/fbt; not available in this sandbox) ---
 prepare:
