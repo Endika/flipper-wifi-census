@@ -110,3 +110,32 @@ uint16_t wc_census_ssid_tally(const WcCensus *c, WcSsidTally *out, uint16_t cap)
     }
     return distinct;
 }
+
+// Find a dst device that a src device should merge into: a stable MAC matches by MAC; a
+// randomized src device matches by any shared directed SSID with a non-AP dst device.
+static WcSignature *find_merge_target(WcCensus *dst, const WcSignature *sd) {
+    if (!sd->mac_random) {
+        return find_by_mac(dst, sd->mac);
+    }
+    for (uint8_t j = 0; j < sd->ssid_count; j++) {
+        WcSignature *m = find_client_by_ssid(dst, sd->ssids[j]);
+        if (m) {
+            return m;
+        }
+    }
+    return NULL;
+}
+
+void wc_census_merge(WcCensus *dst, const WcCensus *src) {
+    for (uint16_t i = 0; i < src->count; i++) {
+        const WcSignature *sd = &src->devices[i];
+        WcSignature *m = find_merge_target(dst, sd);
+        if (m) {
+            wc_signature_absorb(m, sd);
+        } else if (dst->count < WC_CENSUS_MAX_DEVICES) {
+            dst->devices[dst->count++] = *sd;
+        } else {
+            dst->dropped++;
+        }
+    }
+}

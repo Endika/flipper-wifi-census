@@ -134,8 +134,65 @@ static void test_ssid_tally(void) {
     assert(wc_census_ssid_tally(&c, NULL, 0) == 2);
 }
 
+static void test_merge_accumulates(void) {
+    // Day A: a laptop (stable) and a random phone probing "Ekin_Casa".
+    WcCensus a;
+    wc_census_init(&a);
+    uint8_t laptop[6] = {0x00, 0x1B, 0x21, 1, 2, 3};
+    uint8_t phoneA[6] = {0xDA, 0, 0, 0, 0, 1};
+    WcObservation la = obs_of(laptop, -60, NULL, false);
+    WcObservation pa = obs_of(phoneA, -55, "Ekin_Casa", false);
+    wc_census_observe(&a, &la, 100);
+    wc_census_observe(&a, &pa, 110);
+
+    // Day B: the same laptop again (stronger), the same phone with a NEW random MAC but the
+    // same SSID, and a brand-new stable device.
+    WcCensus b;
+    wc_census_init(&b);
+    uint8_t phoneB[6] = {0xEE, 0, 0, 0, 0, 2};
+    uint8_t newdev[6] = {0xB8, 0x27, 0xEB, 9, 9, 9};
+    WcObservation lb = obs_of(laptop, -40, NULL, false);
+    WcObservation pb = obs_of(phoneB, -50, "Ekin_Casa", false);
+    WcObservation nb = obs_of(newdev, -70, NULL, false);
+    wc_census_observe(&b, &lb, 200);
+    wc_census_observe(&b, &pb, 210);
+    wc_census_observe(&b, &nb, 220);
+
+    wc_census_merge(&a, &b);
+    // laptop merged, phone linked by SSID, newdev appended -> 3 devices.
+    assert(a.count == 3);
+
+    // laptop: obs summed, first=100 kept, last=200, rssi strongest -40.
+    const WcSignature *lap = NULL;
+    for (uint16_t i = 0; i < a.count; i++) {
+        if (memcmp(a.devices[i].mac, laptop, 6) == 0) {
+            lap = &a.devices[i];
+        }
+    }
+    assert(lap && lap->obs_count == 2);
+    assert(lap->first_seen == 100 && lap->last_seen == 200);
+    assert(lap->rssi_max == -40);
+}
+
+static void test_merge_no_false_link(void) {
+    // Two DIFFERENT stable devices sharing a common SSID must NOT merge across captures.
+    WcCensus a, b;
+    wc_census_init(&a);
+    wc_census_init(&b);
+    uint8_t d1[6] = {0x00, 0x1B, 0x21, 1, 1, 1};
+    uint8_t d2[6] = {0x3C, 0xA9, 0xF4, 2, 2, 2};
+    WcObservation o1 = obs_of(d1, -60, "CoffeeShop", false);
+    WcObservation o2 = obs_of(d2, -60, "CoffeeShop", false);
+    wc_census_observe(&a, &o1, 1);
+    wc_census_observe(&b, &o2, 1);
+    wc_census_merge(&a, &b);
+    assert(a.count == 2); // distinct stable MACs, not merged by shared SSID
+}
+
 int main(void) {
     test_same_mac_is_one_device();
+    test_merge_accumulates();
+    test_merge_no_false_link();
     test_ssid_tally();
     test_ssid_links_rotating_random_macs();
     test_random_without_ssid_never_merges();

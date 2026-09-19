@@ -30,3 +30,7 @@ bool wc_signature_add_ssid(WcSignature *sig, const char *ssid);
 
 // True if the signature has recorded this directed SSID.
 bool wc_signature_has_ssid(const WcSignature *sig, const char *ssid);
+
+// Fold `src`'s accumulated stats into `dst` (same device across captures): sum obs_count,
+// widen first/last_seen, keep the strongest RSSI, union SSIDs, sharpen an unknown type.
+void wc_signature_absorb(WcSignature *dst, const WcSignature *src);

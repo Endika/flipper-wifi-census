@@ -2,6 +2,7 @@
 #include "include/application/wc_compare_service.h"
 #include "include/application/wc_files.h"
 #include "include/application/wc_known_service.h"
+#include "include/application/wc_merge_service.h"
 #include "include/application/wc_scan_service.h"
 
 #include <assert.h>
@@ -249,8 +250,44 @@ static void test_known_service_save_load_direct(void) {
     free(store_data);
 }
 
+static void test_merge_service_end_to_end(void) {
+    FakeStore *store_data = calloc(1, sizeof(FakeStore));
+    assert(store_data);
+    WcStorePort store = fake_store_port(store_data);
+
+    // Day 1: a laptop + a local device.
+    WcScanService d1;
+    wc_scan_init(&d1, fake_clock());
+    feed(&d1, "MAC: 00:1B:21:00:00:01 SSID: Net"); // laptop
+    feed(&d1, "MAC: B8:27:EB:00:00:AA SSID: ");    // pi, only day 1
+    // Day 2: same laptop + a new device.
+    WcScanService d2;
+    wc_scan_init(&d2, fake_clock());
+    feed(&d2, "MAC: 00:1B:21:00:00:01 SSID: Net"); // same laptop
+    feed(&d2, "MAC: 3C:A9:F4:00:00:BB SSID: ");    // new, only day 2
+
+    WcCaptureMeta meta;
+    memset(&meta, 0, sizeof(meta));
+    snprintf(meta.label, sizeof(meta.label), "d1");
+    assert(wc_capture_service_save(&store, "d1", &meta, &d1.census));
+    snprintf(meta.label, sizeof(meta.label), "d2");
+    assert(wc_capture_service_save(&store, "d2", &meta, &d2.census));
+
+    assert(wc_merge_service_run(&store, "d1" WC_CAP_EXT, "d2" WC_CAP_EXT, "acc"));
+
+    WcCaptureMeta mm;
+    WcCensus *merged = calloc(1, sizeof(WcCensus));
+    assert(merged);
+    assert(wc_capture_service_load(&store, "acc" WC_CAP_EXT, &mm, merged));
+    // laptop deduped across days, pi + new device distinct -> 3.
+    assert(merged->count == 3);
+    free(merged);
+    free(store_data);
+}
+
 int main(void) {
     test_scan_service_builds_census();
+    test_merge_service_end_to_end();
     test_capture_save_load_and_csv();
     test_compare_service_end_to_end();
     test_known_service_mark_and_match();

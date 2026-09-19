@@ -51,3 +51,22 @@ void wc_signature_merge(WcSignature *sig, const WcObservation *obs, uint32_t now
     }
     wc_signature_add_ssid(sig, obs->probed_ssid);
 }
+
+void wc_signature_absorb(WcSignature *dst, const WcSignature *src) {
+    dst->obs_count += src->obs_count;
+    if (src->first_seen < dst->first_seen) {
+        dst->first_seen = src->first_seen;
+    }
+    if (src->last_seen > dst->last_seen) {
+        dst->last_seen = src->last_seen;
+    }
+    if (src->rssi_max > dst->rssi_max) {
+        dst->rssi_max = src->rssi_max;
+    }
+    for (uint8_t i = 0; i < src->ssid_count; i++) {
+        wc_signature_add_ssid(dst, src->ssids[i]);
+    }
+    if (dst->type == WcDeviceUnknown) {
+        dst->type = src->type;
+    }
+}

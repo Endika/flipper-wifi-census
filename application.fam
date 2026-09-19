@@ -29,6 +29,7 @@ App(
         "src/application/wc_capture_service.c",
         "src/application/wc_compare_service.c",
         "src/application/wc_known_service.c",
+        "src/application/wc_merge_service.c",
         "src/app/wc_app.c",
         "src/scenes/wc_scene.c",
         "src/scenes/wc_scenes.c",

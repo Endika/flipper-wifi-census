@@ -37,7 +37,7 @@ OBJS_KNOWN = wc_observation.o wc_signature.o wc_known.o test_known.o
 OBJS_PARSE = wc_observation.o wc_marauder_parse.o test_marauder_parse.o
 OBJS_LINEASM = wc_line_assembler.o test_line_assembler.o
 OBJS_TIMEFMT = wc_timefmt.o test_timefmt.o
-OBJS_APP = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o wc_compare.o wc_known.o wc_marauder_parse.o wc_scan_service.o wc_capture_service.o wc_compare_service.o wc_known_service.o test_app_services.o
+OBJS_APP = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o wc_compare.o wc_known.o wc_marauder_parse.o wc_scan_service.o wc_capture_service.o wc_compare_service.o wc_known_service.o wc_merge_service.o test_app_services.o
 TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec test_wc_compare test_wc_known test_wc_parse test_wc_lineasm test_wc_app test_wc_timefmt
 
 test: $(TEST_BINS)
@@ -145,6 +145,9 @@ wc_compare_service.o: src/application/wc_compare_service.c include/application/w
 wc_known_service.o: src/application/wc_known_service.c include/application/wc_known_service.h include/application/wc_files.h include/domain/wc_known.h include/ports/wc_store_port.h
 	$(CC) $(CFLAGS) -c src/application/wc_known_service.c -o wc_known_service.o
 
+wc_merge_service.o: src/application/wc_merge_service.c include/application/wc_merge_service.h include/application/wc_capture_service.h include/domain/wc_census.h include/ports/wc_store_port.h
+	$(CC) $(CFLAGS) -c src/application/wc_merge_service.c -o wc_merge_service.o
+
 wc_timefmt.o: src/domain/wc_timefmt.c include/domain/wc_timefmt.h
 	$(CC) $(CFLAGS) -c src/domain/wc_timefmt.c -o wc_timefmt.o
 
@@ -192,6 +195,7 @@ linter:
 		src/application/wc_capture_service.c \
 		src/application/wc_compare_service.c \
 		src/application/wc_known_service.c \
+		src/application/wc_merge_service.c \
 		src/platform/wc_clock_furi.c \
 		src/platform/wc_store_furi.c \
 		src/platform/wc_serial_furi.c \

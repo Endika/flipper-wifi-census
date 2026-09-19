@@ -46,3 +46,8 @@ void wc_census_init(WcCensus *c);
 WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t now);
 
 WcCensusStats wc_census_stats(const WcCensus *c);
+
+// Merge every device of `src` into `dst` using the same dedup rules as a live session (same
+// stable MAC, or a shared directed SSID for a randomized device), accumulating stats. Used
+// to combine captures of one place taken on different days. Overflow bumps dst->dropped.
+void wc_census_merge(WcCensus *dst, const WcCensus *src);

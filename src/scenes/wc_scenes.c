@@ -1,5 +1,6 @@
 #include "include/app/wc_app.h"
 #include "include/application/wc_files.h"
+#include "include/application/wc_merge_service.h"
 #include "include/domain/wc_observation.h"
 #include "include/domain/wc_timefmt.h"
 #include "include/domain/wc_version_info.h"
@@ -74,6 +75,7 @@ typedef enum {
     StartScan,
     StartFiles,
     StartCompare,
+    StartMerge,
     StartKnown,
     StartSettings,
     StartAbout,
@@ -86,6 +88,7 @@ void wc_scene_start_on_enter(void *context) {
     submenu_add_item(app->submenu, "Scan", StartScan, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Files", StartFiles, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Compare", StartCompare, wc_submenu_cb, app);
+    submenu_add_item(app->submenu, "Merge", StartMerge, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Known devices", StartKnown, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Settings", StartSettings, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "About", StartAbout, wc_submenu_cb, app);
@@ -106,6 +109,9 @@ bool wc_scene_start_on_event(void *context, SceneManagerEvent event) {
             return true;
         case StartCompare:
             scene_manager_next_scene(app->scene_manager, WcSceneCompareA);
+            return true;
+        case StartMerge:
+            scene_manager_next_scene(app->scene_manager, WcSceneMergeA);
             return true;
         case StartKnown:
             scene_manager_next_scene(app->scene_manager, WcSceneKnown);
@@ -568,6 +574,78 @@ bool wc_scene_compare_result_on_event(void *context, SceneManagerEvent event) {
 void wc_scene_compare_result_on_exit(void *context) {
     WcApp *app = context;
     text_box_reset(app->text_box);
+}
+
+// ---------------------------------------------------------------------------
+// Merge: pick A, pick B, name the accumulated capture
+// ---------------------------------------------------------------------------
+
+void wc_scene_merge_a_on_enter(void *context) {
+    WcApp *app = context;
+    populate_files(app, "Merge: pick A");
+}
+
+bool wc_scene_merge_a_on_event(void *context, SceneManagerEvent event) {
+    WcApp *app = context;
+    if (event.type == SceneManagerEventTypeCustom && event.event < app->list_count) {
+        strncpy(app->merge_a, app->list_names[event.event], WC_TEXT_BUF_SIZE - 1);
+        app->merge_a[WC_TEXT_BUF_SIZE - 1] = '\0';
+        scene_manager_next_scene(app->scene_manager, WcSceneMergeB);
+        return true;
+    }
+    return false;
+}
+
+void wc_scene_merge_a_on_exit(void *context) {
+    WcApp *app = context;
+    submenu_reset(app->submenu);
+}
+
+void wc_scene_merge_b_on_enter(void *context) {
+    WcApp *app = context;
+    populate_files(app, "Merge: pick B");
+}
+
+bool wc_scene_merge_b_on_event(void *context, SceneManagerEvent event) {
+    WcApp *app = context;
+    if (event.type == SceneManagerEventTypeCustom && event.event < app->list_count) {
+        strncpy(app->merge_b, app->list_names[event.event], WC_TEXT_BUF_SIZE - 1);
+        app->merge_b[WC_TEXT_BUF_SIZE - 1] = '\0';
+        scene_manager_next_scene(app->scene_manager, WcSceneMergeName);
+        return true;
+    }
+    return false;
+}
+
+void wc_scene_merge_b_on_exit(void *context) {
+    WcApp *app = context;
+    submenu_reset(app->submenu);
+}
+
+void wc_scene_merge_name_on_enter(void *context) {
+    WcApp *app = context;
+    wc_default_capture_name(wc_clock_now(&app->clock), app->text_buf, sizeof(app->text_buf));
+    text_input_reset(app->text_input);
+    text_input_set_header_text(app->text_input, "Merged name");
+    text_input_set_result_callback(app->text_input, wc_text_input_cb, app, app->text_buf,
+                                   WC_BASENAME_MAX, false);
+    text_input_set_minimum_length(app->text_input, 1);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewTextInput);
+}
+
+bool wc_scene_merge_name_on_event(void *context, SceneManagerEvent event) {
+    WcApp *app = context;
+    if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventTextDone) {
+        wc_merge_service_run(&app->store, app->merge_a, app->merge_b, app->text_buf);
+        scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
+        return true;
+    }
+    return false;
+}
+
+void wc_scene_merge_name_on_exit(void *context) {
+    WcApp *app = context;
+    text_input_reset(app->text_input);
 }
 
 // ---------------------------------------------------------------------------
