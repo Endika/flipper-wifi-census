@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4](https://github.com/Endika/flipper-wifi-census/compare/v0.1.3...v0.1.4) (2026-09-19)
+
+
+### Features
+
+* import a pcap into a census on-device and via a host tool ([4213ec1](https://github.com/Endika/flipper-wifi-census/commit/4213ec16caee6aff6ab897210153fbaec14c448c))
+* parse raw 802.11 probe frames with an IE fingerprint ([e3e87d6](https://github.com/Endika/flipper-wifi-census/commit/e3e87d6f8cb63a50e51dad31152d3e838b4d75fe))
+
 ## [0.1.3](https://github.com/Endika/flipper-wifi-census/compare/v0.1.2...v0.1.3) (2026-09-19)
 
 
