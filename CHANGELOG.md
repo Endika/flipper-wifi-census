@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/Endika/flipper-wifi-census/compare/v0.1.9...v0.1.10) (2026-09-19)
+
+
+### Bug Fixes
+
+* reserve census up front and shrink per-device size to stop mid-scan OOM reboots ([1ab1c42](https://github.com/Endika/flipper-wifi-census/commit/1ab1c42ad609c79b8978472d11cee15642005894))
+
 ## [0.1.9](https://github.com/Endika/flipper-wifi-census/compare/v0.1.8...v0.1.9) (2026-09-19)
 
 
