@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/Endika/flipper-wifi-census/compare/v0.1.6...v0.1.7) (2026-09-19)
+
+
+### Bug Fixes
+
+* census grows on demand (fits big scans/merges) and merge shows a result summary ([a2eb175](https://github.com/Endika/flipper-wifi-census/commit/a2eb175d408d6eed650043860d69ba460bfe836e))
+
 ## [0.1.6](https://github.com/Endika/flipper-wifi-census/compare/v0.1.5...v0.1.6) (2026-09-19)
 
 
