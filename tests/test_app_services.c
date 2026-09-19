@@ -1,6 +1,7 @@
 #include "include/application/wc_capture_service.h"
 #include "include/application/wc_compare_service.h"
 #include "include/application/wc_files.h"
+#include "include/application/wc_import_service.h"
 #include "include/application/wc_known_service.h"
 #include "include/application/wc_merge_service.h"
 #include "include/application/wc_scan_service.h"
@@ -285,8 +286,70 @@ static void test_merge_service_end_to_end(void) {
     free(store_data);
 }
 
+static void test_import_service_from_pcap(void) {
+    FakeStore *store_data = calloc(1, sizeof(FakeStore));
+    assert(store_data);
+    WcStorePort store = fake_store_port(store_data);
+
+    // Build a minimal classic pcap (LE, linktype 105) with two probe requests.
+    uint8_t pcap[256];
+    size_t o = 0;
+    const uint8_t gh[24] = {0xD4, 0xC3, 0xB2, 0xA1, 0x02, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 105,  0x00, 0x00, 0x00};
+    memcpy(pcap, gh, 24);
+    o = 24;
+    // A probe request: FC=0x40, dur, A1 bcast, A2 (stable mac), A3 bcast, seqctrl, SSID IE.
+    const uint8_t mac[6] = {0x00, 0x1B, 0x21, 0x01, 0x02, 0x03};
+    for (int r = 0; r < 2; r++) {
+        uint8_t frame[64];
+        size_t fl = 0;
+        frame[fl++] = 0x40;
+        frame[fl++] = 0x00;
+        frame[fl++] = 0x00;
+        frame[fl++] = 0x00;
+        memset(frame + fl, 0xFF, 6);
+        fl += 6; // A1
+        memcpy(frame + fl, mac, 6);
+        fl += 6; // A2
+        memset(frame + fl, 0xFF, 6);
+        fl += 6; // A3
+        frame[fl++] = (uint8_t)(r << 4);
+        frame[fl++] = 0; // seqctrl
+        frame[fl++] = 0;
+        frame[fl++] = 3;
+        frame[fl++] = 'N';
+        frame[fl++] = 'e';
+        frame[fl++] = 't'; // SSID IE "Net"
+        // pcap record header
+        memset(pcap + o, 0, 8);
+        pcap[o + 8] = (uint8_t)fl;
+        pcap[o + 9] = 0;
+        pcap[o + 10] = 0;
+        pcap[o + 11] = 0;
+        pcap[o + 12] = (uint8_t)fl;
+        pcap[o + 13] = 0;
+        pcap[o + 14] = 0;
+        pcap[o + 15] = 0;
+        memcpy(pcap + o + 16, frame, fl);
+        o += 16 + fl;
+    }
+    assert(store.write_file(store.self, "cap.pcap", pcap, o));
+
+    assert(wc_import_service_run(&store, fake_clock(), "cap.pcap", "imp"));
+    WcCaptureMeta m;
+    WcCensus *c = calloc(1, sizeof(WcCensus));
+    assert(c);
+    assert(wc_capture_service_load(&store, "imp" WC_CAP_EXT, &m, c));
+    // both records are the same device -> deduped to 1, probing "Net".
+    assert(c->count == 1);
+    assert(strcmp(c->devices[0].ssids[0], "Net") == 0);
+    free(c);
+    free(store_data);
+}
+
 int main(void) {
     test_scan_service_builds_census();
+    test_import_service_from_pcap();
     test_merge_service_end_to_end();
     test_capture_save_load_and_csv();
     test_compare_service_end_to_end();

@@ -5,3 +5,4 @@ test_wc_*
 local.mk
 dist/
 .vscode/
+wc_import

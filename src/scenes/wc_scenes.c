@@ -1,5 +1,6 @@
 #include "include/app/wc_app.h"
 #include "include/application/wc_files.h"
+#include "include/application/wc_import_service.h"
 #include "include/application/wc_merge_service.h"
 #include "include/domain/wc_observation.h"
 #include "include/domain/wc_timefmt.h"
@@ -33,8 +34,8 @@ static void csv_name_of(const char *base_with_ext, char *out, size_t cap) {
 static void files_list_cb(void *context, const char *name) {
     WcApp *app = context;
     size_t n = strlen(name);
-    size_t el = strlen(WC_CAP_EXT);
-    if (n > el && strcmp(name + n - el, WC_CAP_EXT) == 0 && app->list_count < WC_MAX_LIST) {
+    size_t el = strlen(app->list_ext);
+    if (n > el && strcmp(name + n - el, app->list_ext) == 0 && app->list_count < WC_MAX_LIST) {
         strncpy(app->list_names[app->list_count], name, WC_TEXT_BUF_SIZE - 1);
         app->list_names[app->list_count][WC_TEXT_BUF_SIZE - 1] = '\0';
         submenu_add_item(app->submenu, app->list_names[app->list_count], app->list_count,
@@ -43,15 +44,20 @@ static void files_list_cb(void *context, const char *name) {
     }
 }
 
-static void populate_files(WcApp *app, const char *header) {
+static void populate_list(WcApp *app, const char *header, const char *ext, const char *empty_msg) {
     submenu_reset(app->submenu);
     submenu_set_header(app->submenu, header);
+    app->list_ext = ext;
     app->list_count = 0;
     app->store.list(app->store.self, files_list_cb, app);
     if (app->list_count == 0) {
-        submenu_add_item(app->submenu, "(no captures)", WC_MAX_LIST, wc_submenu_cb, app);
+        submenu_add_item(app->submenu, empty_msg, WC_MAX_LIST, wc_submenu_cb, app);
     }
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+}
+
+static void populate_files(WcApp *app, const char *header) {
+    populate_list(app, header, WC_CAP_EXT, "(no captures)");
 }
 
 static const char *known_label_for(WcApp *app, const WcMatch *m) {
@@ -76,6 +82,7 @@ typedef enum {
     StartFiles,
     StartCompare,
     StartMerge,
+    StartImport,
     StartKnown,
     StartSettings,
     StartAbout,
@@ -89,6 +96,7 @@ void wc_scene_start_on_enter(void *context) {
     submenu_add_item(app->submenu, "Files", StartFiles, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Compare", StartCompare, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Merge", StartMerge, wc_submenu_cb, app);
+    submenu_add_item(app->submenu, "Import pcap", StartImport, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Known devices", StartKnown, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "Settings", StartSettings, wc_submenu_cb, app);
     submenu_add_item(app->submenu, "About", StartAbout, wc_submenu_cb, app);
@@ -112,6 +120,9 @@ bool wc_scene_start_on_event(void *context, SceneManagerEvent event) {
             return true;
         case StartMerge:
             scene_manager_next_scene(app->scene_manager, WcSceneMergeA);
+            return true;
+        case StartImport:
+            scene_manager_next_scene(app->scene_manager, WcSceneImportPick);
             return true;
         case StartKnown:
             scene_manager_next_scene(app->scene_manager, WcSceneKnown);
@@ -644,6 +655,57 @@ bool wc_scene_merge_name_on_event(void *context, SceneManagerEvent event) {
 }
 
 void wc_scene_merge_name_on_exit(void *context) {
+    WcApp *app = context;
+    text_input_reset(app->text_input);
+}
+
+// ---------------------------------------------------------------------------
+// Import: pick a .pcap on the SD, name the census, build it
+// ---------------------------------------------------------------------------
+
+void wc_scene_import_pick_on_enter(void *context) {
+    WcApp *app = context;
+    populate_list(app, "Import pcap (in app folder)", ".pcap", "(no .pcap here)");
+}
+
+bool wc_scene_import_pick_on_event(void *context, SceneManagerEvent event) {
+    WcApp *app = context;
+    if (event.type == SceneManagerEventTypeCustom && event.event < app->list_count) {
+        strncpy(app->selected_file, app->list_names[event.event], WC_TEXT_BUF_SIZE - 1);
+        app->selected_file[WC_TEXT_BUF_SIZE - 1] = '\0';
+        scene_manager_next_scene(app->scene_manager, WcSceneImportName);
+        return true;
+    }
+    return false;
+}
+
+void wc_scene_import_pick_on_exit(void *context) {
+    WcApp *app = context;
+    submenu_reset(app->submenu);
+}
+
+void wc_scene_import_name_on_enter(void *context) {
+    WcApp *app = context;
+    wc_default_capture_name(wc_clock_now(&app->clock), app->text_buf, sizeof(app->text_buf));
+    text_input_reset(app->text_input);
+    text_input_set_header_text(app->text_input, "Census name");
+    text_input_set_result_callback(app->text_input, wc_text_input_cb, app, app->text_buf,
+                                   WC_BASENAME_MAX, false);
+    text_input_set_minimum_length(app->text_input, 1);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewTextInput);
+}
+
+bool wc_scene_import_name_on_event(void *context, SceneManagerEvent event) {
+    WcApp *app = context;
+    if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventTextDone) {
+        wc_import_service_run(&app->store, app->clock, app->selected_file, app->text_buf);
+        scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
+        return true;
+    }
+    return false;
+}
+
+void wc_scene_import_name_on_exit(void *context) {
     WcApp *app = context;
     text_input_reset(app->text_input);
 }

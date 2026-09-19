@@ -66,6 +66,7 @@ typedef struct {
     // Scratch for building list submenus (index -> name).
     char list_names[WC_MAX_LIST][WC_TEXT_BUF_SIZE];
     uint16_t list_count;
+    const char *list_ext; // extension filter for the current file listing
 } WcApp;
 
 // Entry point body (called from main.c). Runs the whole app and returns 0.

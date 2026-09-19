@@ -11,7 +11,7 @@ PWD = $(shell pwd)
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -std=c11 -I.
 
-.PHONY: all help test prepare fap clean clean_firmware format format-check linter
+.PHONY: all help test prepare fap clean clean_firmware format format-check linter tool
 
 all: test
 
@@ -38,8 +38,9 @@ OBJS_PARSE = wc_observation.o wc_marauder_parse.o test_marauder_parse.o
 OBJS_LINEASM = wc_line_assembler.o test_line_assembler.o
 OBJS_TIMEFMT = wc_timefmt.o test_timefmt.o
 OBJS_PROBE = wc_observation.o wc_probe_frame.o test_probe_frame.o
-OBJS_APP = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o wc_compare.o wc_known.o wc_marauder_parse.o wc_scan_service.o wc_capture_service.o wc_compare_service.o wc_known_service.o wc_merge_service.o test_app_services.o
-TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec test_wc_compare test_wc_known test_wc_parse test_wc_lineasm test_wc_app test_wc_timefmt test_wc_probe
+OBJS_PCAP = wc_pcap_reader.o test_pcap_reader.o
+OBJS_APP = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o wc_compare.o wc_known.o wc_marauder_parse.o wc_scan_service.o wc_capture_service.o wc_compare_service.o wc_known_service.o wc_merge_service.o wc_import_service.o wc_pcap_reader.o wc_probe_frame.o test_app_services.o
+TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec test_wc_compare test_wc_known test_wc_parse test_wc_lineasm test_wc_app test_wc_timefmt test_wc_probe test_wc_pcap
 
 test: $(TEST_BINS)
 	./test_wc_smoke
@@ -53,6 +54,7 @@ test: $(TEST_BINS)
 	./test_wc_app
 	./test_wc_timefmt
 	./test_wc_probe
+	./test_wc_pcap
 
 test_wc_smoke: $(OBJS_SMOKE)
 	$(CC) $(CFLAGS) -o test_wc_smoke $(OBJS_SMOKE)
@@ -86,6 +88,9 @@ test_wc_timefmt: $(OBJS_TIMEFMT)
 
 test_wc_probe: $(OBJS_PROBE)
 	$(CC) $(CFLAGS) -o test_wc_probe $(OBJS_PROBE)
+
+test_wc_pcap: $(OBJS_PCAP)
+	$(CC) $(CFLAGS) -o test_wc_pcap $(OBJS_PCAP)
 
 wc_version_info.o: src/domain/wc_version_info.c include/domain/wc_version_info.h include/version.h
 	$(CC) $(CFLAGS) -c src/domain/wc_version_info.c -o wc_version_info.o
@@ -165,6 +170,15 @@ wc_probe_frame.o: src/domain/wc_probe_frame.c include/domain/wc_probe_frame.h in
 test_probe_frame.o: tests/test_probe_frame.c include/domain/wc_probe_frame.h include/domain/wc_observation.h
 	$(CC) $(CFLAGS) -c tests/test_probe_frame.c -o test_probe_frame.o
 
+wc_pcap_reader.o: src/domain/wc_pcap_reader.c include/domain/wc_pcap_reader.h
+	$(CC) $(CFLAGS) -c src/domain/wc_pcap_reader.c -o wc_pcap_reader.o
+
+test_pcap_reader.o: tests/test_pcap_reader.c include/domain/wc_pcap_reader.h
+	$(CC) $(CFLAGS) -c tests/test_pcap_reader.c -o test_pcap_reader.o
+
+wc_import_service.o: src/application/wc_import_service.c include/application/wc_import_service.h include/domain/wc_pcap_reader.h include/domain/wc_probe_frame.h
+	$(CC) $(CFLAGS) -c src/application/wc_import_service.c -o wc_import_service.o
+
 test_app_services.o: tests/test_app_services.c include/application/wc_scan_service.h include/application/wc_capture_service.h include/application/wc_compare_service.h include/application/wc_known_service.h include/application/wc_files.h
 	$(CC) $(CFLAGS) -c tests/test_app_services.c -o test_app_services.o
 
@@ -203,6 +217,8 @@ linter:
 		src/domain/wc_line_assembler.c \
 		src/domain/wc_timefmt.c \
 		src/domain/wc_probe_frame.c \
+		src/domain/wc_pcap_reader.c \
+		src/application/wc_import_service.c \
 		src/application/wc_scan_service.c \
 		src/application/wc_capture_service.c \
 		src/application/wc_compare_service.c \
@@ -247,5 +263,10 @@ fap: prepare clean_firmware clean
 		cd $(FLIPPER_FIRMWARE_PATH) && ./fbt fap_$(FAP_APPID); \
 	fi
 
+TOOL_SRCS = tools/wc_import.c src/domain/wc_pcap_reader.c src/domain/wc_probe_frame.c src/domain/wc_observation.c src/domain/wc_signature.c src/domain/wc_census.c src/domain/wc_capture_codec.c
+
+tool:
+	$(CC) $(CFLAGS) -o wc_import $(TOOL_SRCS)
+
 clean:
-	rm -f *.o tests/*.o $(TEST_BINS)
+	rm -f *.o tests/*.o $(TEST_BINS) wc_import

@@ -65,6 +65,22 @@ isolated in `src/domain/wc_marauder_parse.c` and can be adjusted there.
 
 Files are stored under `/ext/apps_data/flipper_wifi_census/`.
 
+## Import a pcap (no Flipper needed)
+
+Any raw-802.11 probe-request capture (linktype 105 — what Marauder writes, also Kismet /
+airodump) can be turned into a census, on the Flipper or on a laptop:
+
+- **On a PC** — build the host tool and pipe a pcap through it:
+  ```sh
+  make tool
+  ./wc_import capture.pcap > census.csv
+  ```
+  It prints the same CSV the app writes (mac, random, type, vendor, networks sought, …) and a
+  one-line summary on stderr. Handy when you have the pcap but not the Flipper.
+- **On the Flipper** — drop the `.pcap` into `/ext/apps_data/flipper_wifi_census/` and use
+  **Import pcap** in the menu (on-device import reads files up to 64 KB; use the PC tool for
+  larger ones).
+
 ## Building
 
 Host-side domain logic is plain C and unit-tested with gcc; `furi` is confined to the
