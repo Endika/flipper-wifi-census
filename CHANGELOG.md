@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.15](https://github.com/Endika/flipper-wifi-census/compare/v0.1.14...v0.1.15) (2026-09-19)
+
+
+### Features
+
+* add a Serial debug view showing raw Marauder lines ([54cf475](https://github.com/Endika/flipper-wifi-census/commit/54cf47560dce5aaab886fc1be80114ae89ed3924))
+
 ## [0.1.14](https://github.com/Endika/flipper-wifi-census/compare/v0.1.13...v0.1.14) (2026-09-19)
 
 
