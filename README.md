@@ -66,8 +66,20 @@ isolated in `src/domain/wc_marauder_parse.c` and can be adjusted there.
 4. **Compare** — pick two saved captures; you get how many devices each had, how many are
    common (high confidence: same stable MAC or same probed SSID), and how many randomized
    devices could not be crossed.
-5. **Known devices** — from a capture's device list, mark a device with a label. Labeled
-   devices are then highlighted in comparisons.
+5. **Device detail** — from a capture's device list, select a device to see its full MAC,
+   type, vendor, signal, sighting count and **the networks it is probing for**. If the device
+   is identifiable (stable MAC, or it names a network), a **Mark known** button labels it.
+6. **Known devices & networks** — mark rules are the randomization-resistant signal:
+   - A **stable-MAC** device is remembered by its MAC.
+   - A device that **probes a named network** is remembered by that SSID — so any phone asking
+     for it matches, whatever random MAC it uses. You can also tag a network **directly** from
+     the **Networks sought** list (select it → label it).
+   - The label defaults to a generic name (`dev_…` / `net_…`) so you can just confirm.
+   - In **Known**, select an entry to **Rename** or **Delete** it.
+   Labeled devices and networks are highlighted in comparisons.
+
+A randomized phone that only sends wildcard probes (no named network) can't be turned into a
+durable rule — the detail screen says so instead of failing silently. Tag a network it seeks.
 
 Files are stored under `/ext/apps_data/flipper_wifi_census/`.
 
@@ -103,7 +115,7 @@ file is written.
 
 ## Combine many captures on a PC (beyond the device limit)
 
-A single Flipper scan or merge is capped at 320 devices (its RAM). To census a huge venue,
+A single Flipper scan or merge is capped at 100 devices (its RAM). To census a huge venue,
 capture it as several files and merge them all on a laptop, where there is no such cap:
 
 ```sh

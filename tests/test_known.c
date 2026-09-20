@@ -46,6 +46,41 @@ static void test_rule_from_random_needs_ssid(void) {
     assert(!wc_known_rule_from_signature(&k, &without, "Nope"));
 }
 
+static void test_rule_ssid_direct(void) {
+    WcKnown k;
+    assert(wc_known_rule_ssid(&k, "Casa_Ana", "Ana"));
+    assert(k.type == WcRuleBySsid);
+    assert(strcmp(k.ssid, "Casa_Ana") == 0);
+    assert(strcmp(k.label, "Ana") == 0);
+    // A device probing that network matches, whatever its (randomized) MAC.
+    WcKnownDb db;
+    wc_known_init(&db);
+    assert(wc_known_add(&db, &k));
+    WcSignature phone = sig_random_with_ssid("Casa_Ana");
+    const WcKnown *m = wc_known_match(&db, &phone);
+    assert(m && strcmp(m->label, "Ana") == 0);
+    // An empty SSID is rejected.
+    assert(!wc_known_rule_ssid(&k, "", "x"));
+}
+
+static void test_remove(void) {
+    WcKnownDb db;
+    wc_known_init(&db);
+    WcKnown a, b, c;
+    assert(wc_known_rule_ssid(&a, "A", "a"));
+    assert(wc_known_rule_ssid(&b, "B", "b"));
+    assert(wc_known_rule_ssid(&c, "C", "c"));
+    wc_known_add(&db, &a);
+    wc_known_add(&db, &b);
+    wc_known_add(&db, &c);
+    assert(db.count == 3);
+    assert(wc_known_remove(&db, 1)); // remove the middle one
+    assert(db.count == 2);
+    assert(strcmp(db.items[0].ssid, "A") == 0);
+    assert(strcmp(db.items[1].ssid, "C") == 0); // C shifted down
+    assert(!wc_known_remove(&db, 5));           // out of range
+}
+
 static void test_match(void) {
     WcKnownDb db;
     wc_known_init(&db);
@@ -105,6 +140,8 @@ static void test_round_trip(void) {
 int main(void) {
     test_rule_from_stable_mac();
     test_rule_from_random_needs_ssid();
+    test_rule_ssid_direct();
+    test_remove();
     test_match();
     test_round_trip();
     printf("test_known: OK\n");

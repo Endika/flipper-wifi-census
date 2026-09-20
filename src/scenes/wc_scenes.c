@@ -419,16 +419,28 @@ void wc_scene_file_actions_on_exit(void *context) {
 void wc_scene_devices_on_enter(void *context) {
     WcApp *app = context;
     submenu_reset(app->submenu);
-    submenu_set_header(app->submenu, "Mark as known");
+    submenu_set_header(app->submenu, "Devices (select)");
     WcCensus *c = app->browse_census;
     uint16_t n = c ? c->count : 0;
     for (uint16_t i = 0; i < n && i < WC_MAX_LIST; i++) {
         const WcSignature *d = &c->devices[i];
-        const char *vendor = wc_signature_vendor(d);
         char label[64];
-        snprintf(label, sizeof(label), "%s%s%s %02X:%02X:%02X:%02X:%02X:%02X",
-                 wc_device_type_name(d->type), vendor[0] ? " " : "", vendor, d->mac[0], d->mac[1],
-                 d->mac[2], d->mac[3], d->mac[4], d->mac[5]);
+        // Lead with the most identifying bit so the truncated row still says something: the
+        // probed network if any (the key signal), else the vendor, else the MAC tail. Full
+        // detail (whole MAC, all networks) is one click away in the detail scene.
+        if (d->ssid_count > 0) {
+            snprintf(label, sizeof(label), "%s >%s", wc_device_type_name(d->type), d->ssids[0]);
+        } else {
+            const char *vendor = wc_signature_vendor(d);
+            if (vendor[0]) {
+                snprintf(label, sizeof(label), "%s %s %02X:%02X:%02X", wc_device_type_name(d->type),
+                         vendor, d->mac[3], d->mac[4], d->mac[5]);
+            } else {
+                snprintf(label, sizeof(label), "%s %02X:%02X:%02X:%02X:%02X:%02X",
+                         wc_device_type_name(d->type), d->mac[0], d->mac[1], d->mac[2], d->mac[3],
+                         d->mac[4], d->mac[5]);
+            }
+        }
         submenu_add_item(app->submenu, label, i, wc_submenu_cb, app);
     }
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
@@ -439,7 +451,7 @@ bool wc_scene_devices_on_event(void *context, SceneManagerEvent event) {
     uint16_t n = app->browse_census ? app->browse_census->count : 0;
     if (event.type == SceneManagerEventTypeCustom && event.event < n) {
         app->selected_device = (uint16_t)event.event;
-        scene_manager_next_scene(app->scene_manager, WcSceneMarkLabel);
+        scene_manager_next_scene(app->scene_manager, WcSceneDeviceDetail);
         return true;
     }
     return false;
@@ -451,21 +463,110 @@ void wc_scene_devices_on_exit(void *context) {
 }
 
 // ---------------------------------------------------------------------------
+// Device detail (full info + probed networks; mark known from here)
+// ---------------------------------------------------------------------------
+
+static void device_detail_button_cb(GuiButtonType result, InputType type, void *context) {
+    if (result == GuiButtonTypeCenter && type == InputTypeShort) {
+        WcApp *app = context;
+        view_dispatcher_send_custom_event(app->view_dispatcher, WcCustomEventButton);
+    }
+}
+
+// Bounded append: snprintf into buf+*len, advancing *len and never running past cap.
+static void detail_catf(char *buf, size_t *len, size_t cap, const char *s) {
+    if (*len >= cap) {
+        return;
+    }
+    int r = snprintf(buf + *len, cap - *len, "%s", s);
+    if (r > 0) {
+        *len += (size_t)r;
+    }
+    if (*len >= cap) {
+        *len = cap - 1;
+    }
+}
+
+void wc_scene_device_detail_on_enter(void *context) {
+    WcApp *app = context;
+    widget_reset(app->widget);
+    WcCensus *c = app->browse_census;
+    if (c && app->selected_device < c->count) {
+        const WcSignature *d = &c->devices[app->selected_device];
+        const char *vendor = wc_signature_vendor(d);
+        bool markable = !d->mac_random || d->ssid_count > 0;
+
+        char buf[320];
+        size_t len = 0;
+        char line[96];
+        snprintf(line, sizeof(line), "%s%s%s\n", wc_device_type_name(d->type),
+                 vendor[0] ? " - " : "", vendor);
+        detail_catf(buf, &len, sizeof(buf), line);
+        snprintf(line, sizeof(line), "%02X:%02X:%02X:%02X:%02X:%02X (%s)\n", d->mac[0], d->mac[1],
+                 d->mac[2], d->mac[3], d->mac[4], d->mac[5], d->mac_random ? "random" : "stable");
+        detail_catf(buf, &len, sizeof(buf), line);
+        snprintf(line, sizeof(line), "RSSI %d  seen %lu\n", (int)d->rssi_max,
+                 (unsigned long)d->obs_count);
+        detail_catf(buf, &len, sizeof(buf), line);
+
+        if (d->ssid_count > 0) {
+            detail_catf(buf, &len, sizeof(buf), "Asks for:");
+            for (uint8_t i = 0; i < d->ssid_count; i++) {
+                snprintf(line, sizeof(line), "\n %s", d->ssids[i]);
+                detail_catf(buf, &len, sizeof(buf), line);
+            }
+        } else {
+            detail_catf(buf, &len, sizeof(buf), "Asks for: (wildcard only)");
+        }
+        if (!markable) {
+            detail_catf(buf, &len, sizeof(buf),
+                        "\nRandom MAC, no named net:\ncan't save. Tag its network.");
+        }
+
+        widget_add_text_scroll_element(app->widget, 0, 0, 128, 52, buf);
+        if (markable) {
+            widget_add_button_element(app->widget, GuiButtonTypeCenter, "Mark known",
+                                      device_detail_button_cb, app);
+        }
+    }
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewWidget);
+}
+
+bool wc_scene_device_detail_on_event(void *context, SceneManagerEvent event) {
+    if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventButton) {
+        WcApp *app = context;
+        app->mark_mode = WcMarkDevice;
+        scene_manager_next_scene(app->scene_manager, WcSceneMarkLabel);
+        return true;
+    }
+    return false;
+}
+
+void wc_scene_device_detail_on_exit(void *context) {
+    WcApp *app = context;
+    widget_reset(app->widget);
+}
+
+// ---------------------------------------------------------------------------
 // Networks sought (directed SSIDs devices are probing for)
 // ---------------------------------------------------------------------------
 
 void wc_scene_networks_on_enter(void *context) {
     WcApp *app = context;
     submenu_reset(app->submenu);
-    submenu_set_header(app->submenu, "Networks sought");
+    submenu_set_header(app->submenu, "Networks (select to tag)");
+    app->list_count = 0;
     if (app->browse_census) {
         WcSsidTally *t = malloc(sizeof(WcSsidTally) * WC_MAX_LIST);
         if (t) {
             uint16_t n = wc_census_ssid_tally(app->browse_census, t, WC_MAX_LIST);
             for (uint16_t i = 0; i < n && i < WC_MAX_LIST; i++) {
+                strncpy(app->list_names[i], t[i].ssid, WC_TEXT_BUF_SIZE - 1);
+                app->list_names[i][WC_TEXT_BUF_SIZE - 1] = '\0';
                 char label[64];
                 snprintf(label, sizeof(label), "%s (%u)", t[i].ssid, t[i].devices);
                 submenu_add_item(app->submenu, label, i, wc_submenu_cb, app);
+                app->list_count++;
             }
             if (n == 0) {
                 submenu_add_item(app->submenu, "(none sought)", WC_MAX_LIST, wc_submenu_cb, app);
@@ -477,8 +578,14 @@ void wc_scene_networks_on_enter(void *context) {
 }
 
 bool wc_scene_networks_on_event(void *context, SceneManagerEvent event) {
-    UNUSED(context);
-    UNUSED(event);
+    WcApp *app = context;
+    if (event.type == SceneManagerEventTypeCustom && event.event < app->list_count) {
+        strncpy(app->selected_ssid, app->list_names[event.event], WC_SSID_MAX_LEN);
+        app->selected_ssid[WC_SSID_MAX_LEN] = '\0';
+        app->mark_mode = WcMarkSsid;
+        scene_manager_next_scene(app->scene_manager, WcSceneMarkLabel);
+        return true;
+    }
     return false;
 }
 
@@ -493,11 +600,42 @@ void wc_scene_networks_on_exit(void *context) {
 
 void wc_scene_mark_label_on_enter(void *context) {
     WcApp *app = context;
-    app->text_buf[0] = '\0';
     text_input_reset(app->text_input);
-    text_input_set_header_text(app->text_input, "Label for device");
+    // Pre-fill a generic name so the user can just confirm without typing.
+    const char *header = "Label for device";
+    switch (app->mark_mode) {
+        case WcMarkSsid:
+            header = "Label for network";
+            snprintf(app->text_buf, sizeof(app->text_buf), "net_%s", app->selected_ssid);
+            break;
+        case WcMarkRename:
+            header = "Rename";
+            if (app->selected_known < app->known.count) {
+                snprintf(app->text_buf, sizeof(app->text_buf), "%s",
+                         app->known.items[app->selected_known].label);
+            } else {
+                app->text_buf[0] = '\0';
+            }
+            break;
+        case WcMarkDevice:
+        default:
+            if (app->browse_census && app->selected_device < app->browse_census->count) {
+                const WcSignature *d = &app->browse_census->devices[app->selected_device];
+                if (d->ssid_count > 0) {
+                    snprintf(app->text_buf, sizeof(app->text_buf), "net_%s", d->ssids[0]);
+                } else {
+                    snprintf(app->text_buf, sizeof(app->text_buf), "dev_%02X%02X%02X", d->mac[3],
+                             d->mac[4], d->mac[5]);
+                }
+            } else {
+                app->text_buf[0] = '\0';
+            }
+            break;
+    }
+    app->text_buf[WC_KNOWN_LABEL_MAX] = '\0'; // labels are stored clamped to this length
+    text_input_set_header_text(app->text_input, header);
     text_input_set_result_callback(app->text_input, wc_text_input_cb, app, app->text_buf,
-                                   WC_KNOWN_LABEL_MAX, true);
+                                   WC_KNOWN_LABEL_MAX + 1, false);
     text_input_set_minimum_length(app->text_input, 1);
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewTextInput);
 }
@@ -505,11 +643,22 @@ void wc_scene_mark_label_on_enter(void *context) {
 bool wc_scene_mark_label_on_event(void *context, SceneManagerEvent event) {
     WcApp *app = context;
     if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventTextDone) {
-        if (app->browse_census && app->selected_device < app->browse_census->count) {
-            const WcSignature *sig = &app->browse_census->devices[app->selected_device];
-            wc_known_service_mark(&app->store, sig, app->text_buf);
-            wc_known_service_load(&app->store, &app->known);
+        switch (app->mark_mode) {
+            case WcMarkSsid:
+                wc_known_service_mark_ssid(&app->store, app->selected_ssid, app->text_buf);
+                break;
+            case WcMarkRename:
+                wc_known_service_rename(&app->store, app->selected_known, app->text_buf);
+                break;
+            case WcMarkDevice:
+            default:
+                if (app->browse_census && app->selected_device < app->browse_census->count) {
+                    const WcSignature *sig = &app->browse_census->devices[app->selected_device];
+                    wc_known_service_mark(&app->store, sig, app->text_buf);
+                }
+                break;
         }
+        wc_known_service_load(&app->store, &app->known);
         scene_manager_previous_scene(app->scene_manager);
         return true;
     }
@@ -819,7 +968,7 @@ void wc_scene_known_on_enter(void *context) {
     WcApp *app = context;
     wc_known_service_load(&app->store, &app->known);
     submenu_reset(app->submenu);
-    submenu_set_header(app->submenu, "Known devices");
+    submenu_set_header(app->submenu, "Known (select to edit)");
     for (uint16_t i = 0; i < app->known.count; i++) {
         const WcKnown *k = &app->known.items[i];
         char label[64];
@@ -838,12 +987,60 @@ void wc_scene_known_on_enter(void *context) {
 }
 
 bool wc_scene_known_on_event(void *context, SceneManagerEvent event) {
-    UNUSED(context);
-    UNUSED(event);
+    WcApp *app = context;
+    if (event.type == SceneManagerEventTypeCustom && event.event < app->known.count) {
+        app->selected_known = (uint16_t)event.event;
+        scene_manager_next_scene(app->scene_manager, WcSceneKnownActions);
+        return true;
+    }
     return false;
 }
 
 void wc_scene_known_on_exit(void *context) {
+    WcApp *app = context;
+    submenu_reset(app->submenu);
+}
+
+// ---------------------------------------------------------------------------
+// Known actions (rename / delete the selected known entry)
+// ---------------------------------------------------------------------------
+
+enum {
+    WcKnownActionRename = 0,
+    WcKnownActionDelete = 1,
+};
+
+void wc_scene_known_actions_on_enter(void *context) {
+    WcApp *app = context;
+    submenu_reset(app->submenu);
+    const char *lbl = (app->selected_known < app->known.count)
+                          ? app->known.items[app->selected_known].label
+                          : "?";
+    submenu_set_header(app->submenu, lbl);
+    submenu_add_item(app->submenu, "Rename", WcKnownActionRename, wc_submenu_cb, app);
+    submenu_add_item(app->submenu, "Delete", WcKnownActionDelete, wc_submenu_cb, app);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+}
+
+bool wc_scene_known_actions_on_event(void *context, SceneManagerEvent event) {
+    WcApp *app = context;
+    if (event.type == SceneManagerEventTypeCustom) {
+        if (event.event == WcKnownActionRename) {
+            app->mark_mode = WcMarkRename;
+            scene_manager_next_scene(app->scene_manager, WcSceneMarkLabel);
+            return true;
+        }
+        if (event.event == WcKnownActionDelete) {
+            wc_known_service_remove(&app->store, app->selected_known);
+            wc_known_service_load(&app->store, &app->known);
+            scene_manager_previous_scene(app->scene_manager);
+            return true;
+        }
+    }
+    return false;
+}
+
+void wc_scene_known_actions_on_exit(void *context) {
     WcApp *app = context;
     submenu_reset(app->submenu);
 }

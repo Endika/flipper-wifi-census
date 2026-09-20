@@ -49,6 +49,30 @@ bool wc_known_rule_from_signature(WcKnown *out, const WcSignature *sig, const ch
     return false;
 }
 
+bool wc_known_rule_ssid(WcKnown *out, const char *ssid, const char *label) {
+    if (!ssid || ssid[0] == '\0') {
+        return false;
+    }
+    memset(out, 0, sizeof(*out));
+    strncpy(out->label, label, WC_KNOWN_LABEL_MAX);
+    out->label[WC_KNOWN_LABEL_MAX] = '\0';
+    out->type = WcRuleBySsid;
+    strncpy(out->ssid, ssid, WC_SSID_MAX_LEN);
+    out->ssid[WC_SSID_MAX_LEN] = '\0';
+    return true;
+}
+
+bool wc_known_remove(WcKnownDb *db, uint16_t index) {
+    if (index >= db->count) {
+        return false;
+    }
+    for (uint16_t i = index; i + 1 < db->count; i++) {
+        db->items[i] = db->items[i + 1];
+    }
+    db->count--;
+    return true;
+}
+
 const WcKnown *wc_known_match(const WcKnownDb *db, const WcSignature *sig) {
     for (uint16_t i = 0; i < db->count; i++) {
         const WcKnown *k = &db->items[i];

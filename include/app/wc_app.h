@@ -33,7 +33,15 @@ typedef enum {
 typedef enum {
     WcCustomEventScanTick = 100,
     WcCustomEventTextDone = 200,
+    WcCustomEventButton = 300,
 } WcCustomEvent;
+
+// What a label-entry (MarkLabel) applies to when the user confirms.
+typedef enum {
+    WcMarkDevice, // create a rule from the selected device
+    WcMarkSsid,   // create a rule from the selected probed network
+    WcMarkRename, // rename the selected known entry
+} WcMarkMode;
 
 typedef struct {
     Gui *gui;
@@ -68,6 +76,9 @@ typedef struct {
     WcCaptureMeta browse_meta;
     uint16_t selected_device;
     WcKnownDb known;
+    WcMarkMode mark_mode;                    // what the next MarkLabel confirm applies to
+    char selected_ssid[WC_SSID_MAX_LEN + 1]; // network picked in the Networks list
+    uint16_t selected_known;                 // index picked in the Known list
 
     // Scratch for building list submenus (index -> name).
     char list_names[WC_MAX_LIST][WC_TEXT_BUF_SIZE];
