@@ -234,9 +234,28 @@ CSV row per device that turns up in more than one capture, with which ones. With
 captures of the same place, that last column is the question you took them to answer: who keeps
 coming back.
 
-One caveat: **your own kit travels with you**, so it is in every capture and tops that list. The
-tool does not try to guess which devices are yours — you know your own MACs, and the CSV has a
-column for them.
+`-n` reports the **networks** instead of the devices: one row per network sought in more than
+one capture, with which ones. That matters more than it sounds, because a network name is the
+one signal that survives MAC randomization — and randomized devices are 80-90% of a real
+census, none of which can ever be crossed by address.
+
+Measured on one capture recorded while walking from home to a shop and back, split by its own
+timestamps:
+
+| | devices in common | networks in common |
+|---|---|---|
+| home vs the walk's **home** stretch | 14 | 9 (69%) |
+| home vs the walk's **away** stretch | 2 | 2 (15%) |
+
+Nothing is ever excluded. **Your own kit travels with you** and will be in every capture, and so
+will router names common to a whole country — both are reported with a `seen_in` count, and a
+network present in *every* capture tells you nothing about place whoever owns it. The tool keeps
+no list of which devices are yours: a hardcoded one would be wrong the day you change phone, and
+wrong silently.
+
+```sh
+awk -F',' '$2 < 3' networks.csv    # drop what is in all three captures
+```
 
 `-o` makes both tools write a `.wcen` as well as the CSV, and that capture merges and compares
 again like any other. Without it the PC side was a dead end: CSV is the one format nothing reads
@@ -246,7 +265,7 @@ back, so merges could not be chained and a census built on a laptop could never 
 |---|---|---|
 | `wc_import` | one `.pcap` | that capture as CSV, and with `-o` a `.wcen` |
 | `wc_merge` | any number of `.wcen` / `.pcap` | all of them deduplicated, same two outputs |
-| `wc_compare` | 2 to 12 `.wcen` / `.pcap` | who is in which, as CSV, plus an overlap matrix |
+| `wc_compare` | 2 to 12 `.wcen` / `.pcap` | who is in which, as CSV, plus device and network overlap matrices |
 | `wc_iefp` | one `.pcap` | whether the IE fingerprint discriminates, and the duration table |
 | `wc_clean` | one `.pcap` | the same capture with MAC rotation undone, and its own error rate |
 
