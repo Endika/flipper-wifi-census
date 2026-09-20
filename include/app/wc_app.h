@@ -4,10 +4,11 @@
 #include "include/application/wc_compare_service.h"
 #include "include/application/wc_known_service.h"
 #include "include/application/wc_scan_service.h"
+#include "include/application/wc_settings_service.h"
 #include "include/platform/wc_serial_furi.h"
+#include "include/views/wc_scroll_list.h"
 
 #include <gui/gui.h>
-#include <gui/modules/submenu.h>
 #include <gui/modules/text_box.h>
 #include <gui/modules/text_input.h>
 #include <gui/modules/variable_item_list.h>
@@ -20,12 +21,15 @@
 // Most capture files / devices / networks shown in a list. Matches the census ceiling so a full
 // capture is browsable end to end — a smaller value silently hides devices you can never reach.
 #define WC_MAX_LIST WC_CENSUS_MAX_DEVICES
+// A scene can add WC_MAX_LIST entries plus an "empty" placeholder; the list view drops the rest
+// silently, so catch the drift here instead of on screen.
+_Static_assert(WC_MAX_LIST + 1 <= WC_SCROLL_LIST_MAX, "list view too small for the longest list");
 // Auto-save rotates a bit before the hard ceiling so the ~timer-tick window before rotation
 // still has room and does not drop devices.
 #define WC_AUTOSAVE_ROTATE_AT (WC_CENSUS_MAX_DEVICES - 20)
 
 typedef enum {
-    WcViewSubmenu,
+    WcViewList,
     WcViewTextInput,
     WcViewTextBox,
     WcViewWidget,
@@ -49,7 +53,7 @@ typedef struct {
     Gui *gui;
     ViewDispatcher *view_dispatcher;
     SceneManager *scene_manager;
-    Submenu *submenu;
+    WcScrollList *list_view;
     TextInput *text_input;
     TextBox *text_box;
     Widget *widget;
@@ -84,7 +88,7 @@ typedef struct {
     char selected_ssid[WC_SSID_MAX_LEN + 1]; // network picked in the Networks list
     uint16_t selected_known;                 // index picked in the Known list
 
-    // Scratch for building list submenus (index -> name).
+    // Scratch for building the selection lists (index -> name).
     char list_names[WC_MAX_LIST][WC_TEXT_BUF_SIZE];
     uint16_t list_count;
     const char *list_ext; // extension filter for the current file listing

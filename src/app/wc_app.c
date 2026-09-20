@@ -20,9 +20,12 @@ static WcApp *wc_app_alloc(void) {
     WcApp *app = malloc(sizeof(WcApp));
     memset(app, 0, sizeof(WcApp));
 
-    app->baud = 115200;
     app->store = wc_store_furi_port();
     app->clock = wc_clock_furi_port();
+    WcSettings settings;
+    wc_settings_service_load(&app->store, &settings); // corrupt file -> defaults, still usable
+    app->baud = settings.baud;
+    app->autosave = settings.autosave;
     wc_scan_init(&app->scan, app->clock);
     wc_known_service_load(&app->store, &app->known);
 
@@ -32,13 +35,14 @@ static WcApp *wc_app_alloc(void) {
     view_dispatcher_set_custom_event_callback(app->view_dispatcher, wc_custom_event_callback);
     view_dispatcher_set_navigation_event_callback(app->view_dispatcher, wc_back_event_callback);
 
-    app->submenu = submenu_alloc();
+    app->list_view = wc_scroll_list_alloc();
     app->text_input = text_input_alloc();
     app->text_box = text_box_alloc();
     app->widget = widget_alloc();
     app->var_item_list = variable_item_list_alloc();
 
-    view_dispatcher_add_view(app->view_dispatcher, WcViewSubmenu, submenu_get_view(app->submenu));
+    view_dispatcher_add_view(app->view_dispatcher, WcViewList,
+                             wc_scroll_list_get_view(app->list_view));
     view_dispatcher_add_view(app->view_dispatcher, WcViewTextInput,
                              text_input_get_view(app->text_input));
     view_dispatcher_add_view(app->view_dispatcher, WcViewTextBox, text_box_get_view(app->text_box));
@@ -52,13 +56,13 @@ static WcApp *wc_app_alloc(void) {
 }
 
 static void wc_app_free(WcApp *app) {
-    view_dispatcher_remove_view(app->view_dispatcher, WcViewSubmenu);
+    view_dispatcher_remove_view(app->view_dispatcher, WcViewList);
     view_dispatcher_remove_view(app->view_dispatcher, WcViewTextInput);
     view_dispatcher_remove_view(app->view_dispatcher, WcViewTextBox);
     view_dispatcher_remove_view(app->view_dispatcher, WcViewWidget);
     view_dispatcher_remove_view(app->view_dispatcher, WcViewVarList);
 
-    submenu_free(app->submenu);
+    wc_scroll_list_free(app->list_view);
     text_input_free(app->text_input);
     text_box_free(app->text_box);
     widget_free(app->widget);

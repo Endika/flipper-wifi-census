@@ -39,7 +39,7 @@ OBJS_LINEASM = wc_line_assembler.o test_line_assembler.o
 OBJS_TIMEFMT = wc_timefmt.o test_timefmt.o
 OBJS_PROBE = wc_observation.o wc_probe_frame.o test_probe_frame.o
 OBJS_PCAP = wc_pcap_reader.o test_pcap_reader.o
-OBJS_APP = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o wc_compare.o wc_known.o wc_marauder_parse.o wc_scan_service.o wc_capture_service.o wc_compare_service.o wc_known_service.o wc_merge_service.o wc_import_service.o wc_pcap_reader.o wc_probe_frame.o test_app_services.o
+OBJS_APP = wc_observation.o wc_signature.o wc_census.o wc_capture_codec.o wc_compare.o wc_known.o wc_marauder_parse.o wc_scan_service.o wc_capture_service.o wc_compare_service.o wc_known_service.o wc_settings_service.o wc_merge_service.o wc_import_service.o wc_pcap_reader.o wc_probe_frame.o test_app_services.o
 TEST_BINS = test_wc_smoke test_wc_signature test_wc_census test_wc_codec test_wc_compare test_wc_known test_wc_parse test_wc_lineasm test_wc_app test_wc_timefmt test_wc_probe test_wc_pcap
 
 test: $(TEST_BINS)
@@ -155,6 +155,9 @@ wc_compare_service.o: src/application/wc_compare_service.c include/application/w
 wc_known_service.o: src/application/wc_known_service.c include/application/wc_known_service.h include/application/wc_files.h include/domain/wc_known.h include/ports/wc_store_port.h
 	$(CC) $(CFLAGS) -c src/application/wc_known_service.c -o wc_known_service.o
 
+wc_settings_service.o: src/application/wc_settings_service.c include/application/wc_settings_service.h include/application/wc_files.h include/ports/wc_store_port.h
+	$(CC) $(CFLAGS) -c src/application/wc_settings_service.c -o wc_settings_service.o
+
 wc_merge_service.o: src/application/wc_merge_service.c include/application/wc_merge_service.h include/application/wc_capture_service.h include/domain/wc_census.h include/ports/wc_store_port.h
 	$(CC) $(CFLAGS) -c src/application/wc_merge_service.c -o wc_merge_service.o
 
@@ -179,7 +182,7 @@ test_pcap_reader.o: tests/test_pcap_reader.c include/domain/wc_pcap_reader.h
 wc_import_service.o: src/application/wc_import_service.c include/application/wc_import_service.h include/domain/wc_pcap_reader.h include/domain/wc_probe_frame.h
 	$(CC) $(CFLAGS) -c src/application/wc_import_service.c -o wc_import_service.o
 
-test_app_services.o: tests/test_app_services.c include/application/wc_scan_service.h include/application/wc_capture_service.h include/application/wc_compare_service.h include/application/wc_known_service.h include/application/wc_files.h
+test_app_services.o: tests/test_app_services.c include/application/wc_scan_service.h include/application/wc_capture_service.h include/application/wc_compare_service.h include/application/wc_known_service.h include/application/wc_settings_service.h include/application/wc_files.h
 	$(CC) $(CFLAGS) -c tests/test_app_services.c -o test_app_services.o
 
 # --- format / lint ---
@@ -198,6 +201,8 @@ format-check:
 
 # unusedFunction suppression: main.c's entry point (wc_app) is only called by the firmware
 # loader, invisible to cppcheck from this host source set.
+# internalAstError suppression: with_view_model() is a firmware macro cppcheck cannot expand
+# without the SDK headers, so it gives up on the function - every other check still runs.
 linter:
 	cppcheck --enable=all --inline-suppr --error-exitcode=1 -I. \
 		--suppress=missingIncludeSystem \
@@ -206,6 +211,7 @@ linter:
 		--suppress=checkersReport \
 		--suppress=normalCheckLevelMaxBranches \
 		--suppress=nullPointerOutOfMemory \
+		--suppress=internalAstError:src/views/wc_scroll_list.c \
 		src/domain/wc_version_info.c \
 		src/domain/wc_observation.c \
 		src/domain/wc_signature.c \
@@ -223,10 +229,12 @@ linter:
 		src/application/wc_capture_service.c \
 		src/application/wc_compare_service.c \
 		src/application/wc_known_service.c \
+		src/application/wc_settings_service.c \
 		src/application/wc_merge_service.c \
 		src/platform/wc_clock_furi.c \
 		src/platform/wc_store_furi.c \
 		src/platform/wc_serial_furi.c \
+		src/views/wc_scroll_list.c \
 		src/app/wc_app.c \
 		src/scenes/wc_scene.c \
 		src/scenes/wc_scenes.c \

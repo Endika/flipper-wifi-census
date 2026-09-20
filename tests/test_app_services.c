@@ -5,6 +5,7 @@
 #include "include/application/wc_known_service.h"
 #include "include/application/wc_merge_service.h"
 #include "include/application/wc_scan_service.h"
+#include "include/application/wc_settings_service.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -447,6 +448,49 @@ static void test_import_service_from_pcap(void) {
     free(store_data);
 }
 
+static void test_settings_service_defaults_roundtrip_and_corruption(void) {
+    FakeStore *store_data = calloc(1, sizeof(FakeStore));
+    assert(store_data);
+    WcStorePort store = fake_store_port(store_data);
+
+    // Never saved: the defaults come back and it is not an error.
+    WcSettings s;
+    assert(wc_settings_service_load(&store, &s));
+    assert(s.baud == WC_SETTINGS_BAUD_DEFAULT);
+    assert(!s.autosave);
+
+    s.baud = 230400;
+    s.autosave = true;
+    assert(wc_settings_service_save(&store, &s));
+
+    WcSettings back;
+    assert(wc_settings_service_load(&store, &back));
+    assert(back.baud == 230400);
+    assert(back.autosave);
+
+    // Off round-trips as off, not as "no file".
+    back.autosave = false;
+    assert(wc_settings_service_save(&store, &back));
+    assert(wc_settings_service_load(&store, &back));
+    assert(back.baud == 230400);
+    assert(!back.autosave);
+
+    // A corrupt file is refused, and the caller is left with usable defaults.
+    const uint8_t junk[9] = {'X', 'X', 'X', 'X', 0, 0, 0, 0, 1};
+    assert(store.write_file(store.self, WC_SETTINGS_FILE, junk, sizeof(junk)));
+    assert(!wc_settings_service_load(&store, &back));
+    assert(back.baud == WC_SETTINGS_BAUD_DEFAULT);
+    assert(!back.autosave);
+
+    // A truncated file is corrupt too, not a half-read.
+    const uint8_t short_rec[5] = {'W', 'C', 'S', '1', 0};
+    assert(store.write_file(store.self, WC_SETTINGS_FILE, short_rec, sizeof(short_rec)));
+    assert(!wc_settings_service_load(&store, &back));
+    assert(back.baud == WC_SETTINGS_BAUD_DEFAULT);
+
+    free(store_data);
+}
+
 int main(void) {
     test_scan_service_builds_census();
     test_import_service_from_pcap();
@@ -456,6 +500,7 @@ int main(void) {
     test_known_service_mark_and_match();
     test_known_service_multiple_and_manage();
     test_known_service_save_load_direct();
+    test_settings_service_defaults_roundtrip_and_corruption();
     printf("test_app_services: OK\n");
     return 0;
 }
