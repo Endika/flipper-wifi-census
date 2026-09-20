@@ -8,7 +8,8 @@ App(
     fap_icon="icons/icon.icon",
     fap_version="0.1.21",  # x-release-please-version
     fap_author="Endika",
-    fap_description="Passive Wi-Fi device census over an ESP32 Marauder dev board: count and type nearby devices, save each scan, and compare captures across locations. Local-only.",
+    fap_description="Passive Wi-Fi device census over an ESP32 Marauder board: count nearby devices and compare locations.",
+    fap_weburl="https://github.com/Endika/flipper-wifi-census",
     requires=["gui", "storage", "dialogs"],
     sources=[
         "main.c",

@@ -17,7 +17,9 @@
 
 #define WC_TEXT_BUF_SIZE 64
 #define WC_RESULT_TEXT_SIZE 1024
-#define WC_MAX_LIST 40 // most capture files / devices shown in a list
+// Most capture files / devices / networks shown in a list. Matches the census ceiling so a full
+// capture is browsable end to end — a smaller value silently hides devices you can never reach.
+#define WC_MAX_LIST WC_CENSUS_MAX_DEVICES
 // Auto-save rotates a bit before the hard ceiling so the ~timer-tick window before rotation
 // still has room and does not drop devices.
 #define WC_AUTOSAVE_ROTATE_AT (WC_CENSUS_MAX_DEVICES - 20)
@@ -61,6 +63,7 @@ typedef struct {
     WcScanService scan;
     FuriTimer *scan_timer;
     uint32_t scan_started; // epoch when the current scan began (for capture duration)
+    bool scan_link_ok;     // false when the scan could not open the USART (busy)
     bool autosave;         // rotate to a new file when the census fills, instead of dropping
     char autosave_base[WC_TEXT_BUF_SIZE]; // base name for the current auto-save run
     uint16_t autosave_idx;                // next auto-save file index
