@@ -22,6 +22,15 @@ static inline void wc_tool_on_frame(void *ctx, const uint8_t *frame, size_t len)
     }
 }
 
+// Say so if the ceiling ever refused a device. Off-device it must not happen; when it does the
+// count is short, and silence is the worst way to learn that.
+static inline void wc_tool_report_dropped(const char *what, const WcCensus *c) {
+    if (c->dropped > 0) {
+        fprintf(stderr, "! %s: %u devices DROPPED at the ceiling - the count is short\n", what,
+                c->dropped);
+    }
+}
+
 // Write a census as a .wcen, streamed record by record so a venue-sized one needs no buffer of
 // its own size. Without this the host tools could only emit CSV, which nothing reads back: no
 // chained merges, and no way to bring a PC-built census to the Flipper.

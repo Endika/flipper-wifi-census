@@ -31,6 +31,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "! %s is not a .wcen or a supported .pcap\n", argv[i + 1]);
             return 1;
         }
+        wc_tool_report_dropped(argv[i + 1], &c[i]);
         WcCensusStats s = wc_census_stats(&c[i]);
         fprintf(stderr, "%d: %-28s %5u devices (%u randomized, %u crossable)\n", i, argv[i + 1],
                 s.total, s.random_count, s.unique_stable);

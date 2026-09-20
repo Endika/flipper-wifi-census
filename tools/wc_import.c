@@ -64,13 +64,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "= wrote %s (%u devices)\n", out_wcen, c->count);
     }
 
+    wc_tool_report_dropped("import", c);
     WcCensusStats s = wc_census_stats(c);
-    if (c->dropped > 0) {
-        fprintf(stderr,
-                "! %u devices were DROPPED at the ceiling - this should never happen"
-                " off-device; report it\n",
-                c->dropped);
-    }
     fprintf(stderr, "devices: %u (stable %u, random %u), networks sought: %u\n", s.total,
             s.unique_stable, s.random_count, s.networks);
 

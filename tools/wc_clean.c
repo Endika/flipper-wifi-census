@@ -12,8 +12,6 @@
 
 #include "tools/wc_load.h"
 
-#define WC_CLEAN_MAX_MACS 20000
-
 typedef struct {
     uint8_t mac[6];
     bool random;
@@ -22,8 +20,24 @@ typedef struct {
     int root;
 } MacSpan;
 
-static MacSpan g_span[WC_CLEAN_MAX_MACS];
-static int g_spans;
+static MacSpan *g_span;
+static int g_spans, g_span_cap, g_untracked;
+
+// Grown rather than capped: a fixed ceiling here would quietly stop linking once a long capture
+// filled it, and hand back a worse answer with the same confident face.
+static bool span_room(void) {
+    if (g_spans < g_span_cap) {
+        return true;
+    }
+    int cap = g_span_cap ? g_span_cap * 2 : 1024;
+    MacSpan *grown = realloc(g_span, (size_t)cap * sizeof(*g_span));
+    if (!grown) {
+        return false;
+    }
+    g_span = grown;
+    g_span_cap = cap;
+    return true;
+}
 
 static int span_of(const uint8_t mac[6]) {
     for (int i = 0; i < g_spans; i++) {
@@ -61,7 +75,9 @@ static bool scan_spans(const uint8_t *b, size_t sz) {
             }
             t -= t0;
             int i = span_of(ob.mac);
-            if (i < 0 && g_spans < WC_CLEAN_MAX_MACS) {
+            if (i < 0 && !span_room()) {
+                g_untracked++; // out of memory: say so rather than link less and stay quiet
+            } else if (i < 0) {
                 i = g_spans++;
                 memcpy(g_span[i].mac, ob.mac, 6);
                 g_span[i].random = ob.mac_random;
@@ -189,6 +205,10 @@ int main(int argc, char **argv) {
             stables++;
         }
     }
+    if (g_untracked > 0) {
+        fprintf(stderr, "! out of memory: %d MACs not tracked, so they cannot be linked\n",
+                g_untracked);
+    }
     fprintf(stderr, "%s: %d MACs (%d randomized, %d stable)\n\n", path, g_spans, randoms, stables);
 
     if (!out) {
@@ -228,6 +248,8 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "at %.0fs / %d: %d links, %d of them provably wrong on stable MACs\n", window,
             seq_gap, links, fp);
+    wc_tool_report_dropped("raw", raw);
+    wc_tool_report_dropped("cleaned", clean);
     fprintf(stderr, "devices: %u raw -> %u cleaned\n", raw->count, clean->count);
 
     WcCaptureMeta meta;
