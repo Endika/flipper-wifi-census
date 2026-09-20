@@ -14,7 +14,6 @@ static void wc_settings_persist(WcApp *app) {
 
 typedef enum {
     StartScan,
-    StartAutoSave,
     StartFiles,
     StartCompare,
     StartMerge,
@@ -25,16 +24,27 @@ typedef enum {
     StartAbout,
 } StartItem;
 
-// Auto-save lives in Settings too, but it is the one option you decide right before scanning,
-// so the menu both shows it and toggles it.
+static void start_populate(WcApp *app);
+
+// Auto-save rides on the Scan row itself: it is the one option you decide in the moment, so it
+// sits where the decision is taken rather than in a menu you have to remember to visit.
+static void autosave_nudge(void *context, uint32_t index, int8_t delta) {
+    UNUSED(index);
+    UNUSED(delta); // two states: either direction flips it
+    WcApp *app = context;
+    app->autosave = !app->autosave;
+    wc_settings_persist(app);
+    start_populate(app);
+}
+
 static void start_populate(WcApp *app) {
     snprintf(app->menu_autosave_label, sizeof(app->menu_autosave_label), "Auto-save: %s",
              app->autosave ? "On" : "Off");
     wc_scroll_list_reset(app->list_view);
     wc_scroll_list_set_header(app->list_view, "WiFi Census");
     wc_scroll_list_add_item(app->list_view, "Scan", StartScan, wc_list_cb, app);
-    wc_scroll_list_add_item(app->list_view, app->menu_autosave_label, StartAutoSave, wc_list_cb,
-                            app);
+    wc_scroll_list_set_item_value(app->list_view, StartScan, app->menu_autosave_label,
+                                  autosave_nudge, app);
     wc_scroll_list_add_item(app->list_view, "Files", StartFiles, wc_list_cb, app);
     wc_scroll_list_add_item(app->list_view, "Compare", StartCompare, wc_list_cb, app);
     wc_scroll_list_add_item(app->list_view, "Merge", StartMerge, wc_list_cb, app);
@@ -59,12 +69,6 @@ bool wc_scene_start_on_event(void *context, SceneManagerEvent event) {
     switch (event.event) {
         case StartScan:
             scene_manager_next_scene(app->scene_manager, WcSceneScan);
-            return true;
-        case StartAutoSave:
-            app->autosave = !app->autosave;
-            wc_settings_persist(app);
-            start_populate(app);
-            wc_scroll_list_set_selected_item(app->list_view, StartAutoSave);
             return true;
         case StartFiles:
             scene_manager_next_scene(app->scene_manager, WcSceneFiles);

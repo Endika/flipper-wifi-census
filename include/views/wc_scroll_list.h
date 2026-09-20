@@ -23,6 +23,9 @@ typedef void (*WcScrollListCb)(void *context, uint32_t index);
 // `const` on purpose: rendering a row must never change what is being rendered.
 typedef void (*WcScrollListLabelFn)(const void *context, uint32_t index, char *out, size_t cap);
 
+// The selected item was nudged left (-1) or right (+1).
+typedef void (*WcScrollListNudgeFn)(void *context, uint32_t index, int8_t delta);
+
 // Ceiling on items in one list, and the widest label drawn. Covers the longest list the app
 // builds (WC_MAX_LIST entries plus an "empty" placeholder); extra items are dropped and a
 // longer label is truncated, rather than overflowing. The array is flat and preallocated: a
@@ -45,8 +48,11 @@ void wc_scroll_list_add_item(WcScrollList *list, const char *label, uint32_t ind
 // is copied: the rows are rendered straight from whatever the caller already holds in memory.
 void wc_scroll_list_add_generated(WcScrollList *list, uint16_t count, WcScrollListLabelFn label_fn,
                                   WcScrollListCb callback, void *callback_context);
-// Selects the item carrying `index` (the value passed to add_item), scrolling it into view.
-void wc_scroll_list_set_selected_item(WcScrollList *list, uint32_t index);
+// Give ONE item a value drawn on its right and changed with left/right, leaving OK to do what
+// the row already did. One is enough for the "decide it right here" option a menu needs, and
+// keeping it off the item struct costs nothing per row. `value` is borrowed like a label.
+void wc_scroll_list_set_item_value(WcScrollList *list, uint32_t index, const char *value,
+                                   WcScrollListNudgeFn on_nudge, void *context);
 
 // Entries the caller could not even offer, because its own buffers filled first (captures past
 // WC_MAX_LIST, SSIDs past the tally). Added to what the list itself had to refuse; the total is
