@@ -164,7 +164,7 @@ rotates its MAC is counted again every few minutes.
 
 The inflation factor is not a constant — a crowded place also holds many phones of the same
 model — but across every capture we took, a **60-second window barely inflates at all**. Short
-scans, repeated, beat one long one. They also fit comfortably under the 100-device ceiling.
+scans, repeated, beat one long one. They also fit comfortably under the device ceiling.
 
 ## The phone count is a range, not a number
 
@@ -181,7 +181,7 @@ inventing a number.
 
 ## Combine many captures on a PC (beyond the device limit)
 
-A single Flipper scan or merge is capped at 100 devices (its RAM). To census a huge venue,
+A single Flipper scan or merge is capped at 320 devices (its RAM). To census a huge venue,
 capture it as several files and merge them all on a laptop, where there is no such cap:
 
 ```sh
@@ -194,7 +194,7 @@ accepts `.wcen` captures and `.pcap` files mixed, producing one CSV of the whole
 thousands of devices if needed.
 
 Two merged censuses are also too big for the Flipper to compare — it cannot even open a file
-of more than 100 devices — so the crossing has a host tool of its own:
+of more than 320 devices — so the crossing has a host tool of its own:
 
 ```sh
 ./wc_compare monday.wcen friday.wcen > common.csv

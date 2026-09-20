@@ -6,7 +6,7 @@
 // Ceiling for a live scan, a merge, and a loaded capture (bounds the FAP heap). A capture file
 // with more devices than this is rejected, not loaded — the Flipper hasn't the RAM to browse it;
 // combine those on a PC with wc_merge.
-#define WC_CENSUS_MAX_DEVICES 100
+#define WC_CENSUS_MAX_DEVICES 320
 #define WC_CENSUS_GROW 16 // device-array growth chunk
 
 // The set of unique devices seen over one scan session. The device array grows on demand
@@ -70,30 +70,24 @@ bool wc_census_reserve(WcCensus *c, uint16_t n);
 //   3. else -> a new device.
 // Rule 2 never links into an access point, and randomized MACs with no directed SSID are
 // never merged across MACs (counted separately, reported as not-linkable).
-//
-// Two refinements, both measured on real captures rather than assumed:
-//   - A name sought by two devices is a place, not an identity ("DefaultSSID" was seen on 16
-//     distinct STABLE MACs in one capture), so it stops being usable for linking. Two stable
-//     MACs are never merged, whatever they both seek.
-//   - A device whose first probe carried no name is recorded blind, and rule 2 would never
-//     look at it again (1982 of 2171 creations in a real capture). So a device that names a
-//     network LATE is checked then too, and folded in if that name identifies one other
-//     device and this one rotates its MAC.
+// Two refinements, measured rather than assumed: a name sought by two devices is a place, not
+// an identity, so it stops linking; and a device that names a network late is reconsidered
+// then, since most are first heard on a nameless probe.
 // Returns the new/updated signature, or NULL if the table was full.
 WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t now);
 
 WcCensusStats wc_census_stats(const WcCensus *c);
 
-// Bound how many PHONES are behind the randomized MACs. Measured on real captures, an IE
-// fingerprint identifies a phone model, not a phone (51 devices shared one), so it must never
-// merge devices - but two randomized MACs with DIFFERENT fingerprints are certainly two
-// phones, and one phone rotating its MAC keeps the same fingerprint. So:
-//   distinct fingerprints <= phones <= randomized MACs.
-// Returns false when no device carries a fingerprint (a live UART scan reads summary lines,
-// not frames), and then no bound can be stated at all.
+// Bound the phones behind the randomized MACs: distinct fingerprints <= phones <= randomized
+// MACs. The fingerprint names a model, not a device (51 shared one in a real capture), so it
+// bounds but never merges. False when nothing carries a fingerprint, as after a UART scan.
 bool wc_census_phone_bound(const WcCensus *c, uint16_t *min_phones, uint16_t *max_phones);
 
 // Merge every device of `src` into `dst` using the same dedup rules as a live session (same
 // stable MAC, or a shared directed SSID for a randomized device), accumulating stats. Used
 // to combine captures of one place taken on different days. Overflow bumps dst->dropped.
 void wc_census_merge(WcCensus *dst, const WcCensus *src);
+
+// Fold ONE device in, with the same rules. Lets a capture be merged straight off the SD, record
+// by record, instead of being loaded into a second census first.
+void wc_census_merge_one(WcCensus *dst, const WcSignature *src);

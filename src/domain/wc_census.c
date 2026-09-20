@@ -97,10 +97,8 @@ static uint16_t clients_seeking(WcCensus *c, const char *ssid, uint16_t *first, 
     return n;
 }
 
-// A directed SSID is an identity only while exactly ONE device is known to seek it. Once two
-// devices do, it names a place or a router model, not an aparato: "DefaultSSID" was measured
-// on 16 devices with distinct STABLE MACs in one capture, so linking on it would fuse sixteen
-// strangers into one. Such a name is dropped as a signal rather than trusted.
+// An identity only while exactly ONE device seeks it. Two and it names a place or a router
+// model: "DefaultSSID" was measured on 16 devices with distinct stable MACs in one capture.
 static WcSignature *find_client_by_ssid(WcCensus *c, const char *ssid) {
     uint16_t first = 0;
     return (clients_seeking(c, ssid, &first, NULL) == 1) ? &c->devices[first] : NULL;
@@ -116,11 +114,9 @@ static WcSignature *absorb_and_remove(WcCensus *c, uint16_t keep, uint16_t from)
     return &c->devices[keep > from ? keep - 1 : keep];
 }
 
-// A device whose FIRST probe carried no network name is recorded blind, and the SSID rule never
-// gets another look at it - measured at 1982 of 2171 creations in a real capture, leaving 105
-// devices that later named a network already identifying another. So when a device learns a
-// name late, check then too. Only a randomized MAC is ever folded away: two stable MACs are two
-// aparatos, whatever they both seek.
+// Most devices are first heard on a nameless probe (1982 of 2171 creations in a real capture),
+// so the SSID rule must look again when one names a network late. Only a randomized MAC is
+// ever folded away: two stable MACs are two devices, whatever they both seek.
 static WcSignature *link_late(WcCensus *c, WcSignature *dev, const char *ssid) {
     uint16_t a = 0, b = 0;
     if (clients_seeking(c, ssid, &a, &b) != 2) {
@@ -284,16 +280,19 @@ static WcSignature *find_merge_target(WcCensus *dst, const WcSignature *sd) {
     return NULL;
 }
 
+void wc_census_merge_one(WcCensus *dst, const WcSignature *src) {
+    WcSignature *m = find_merge_target(dst, src);
+    if (m) {
+        wc_signature_absorb(m, src);
+    } else {
+        wc_census_add(dst, src); // grows; bumps dropped at the ceiling
+    }
+}
+
 void wc_census_merge(WcCensus *dst, const WcCensus *src) {
     // Reserve once for the worst case so appends below never trigger realloc growth spikes.
     wc_census_reserve(dst, (uint16_t)(dst->count + src->count));
     for (uint16_t i = 0; i < src->count; i++) {
-        const WcSignature *sd = &src->devices[i];
-        WcSignature *m = find_merge_target(dst, sd);
-        if (m) {
-            wc_signature_absorb(m, sd);
-        } else {
-            wc_census_add(dst, sd); // grows; bumps dropped at the ceiling
-        }
+        wc_census_merge_one(dst, &src->devices[i]);
     }
 }

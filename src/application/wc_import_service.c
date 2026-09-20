@@ -14,6 +14,16 @@ typedef struct {
     uint32_t now;
 } ImportCtx;
 
+typedef struct {
+    const WcStorePort *store;
+    const char *path;
+} PullCtx;
+
+static size_t pull_from_store(const void *ctx, size_t offset, uint8_t *buf, size_t cap) {
+    const PullCtx *p = ctx;
+    return p->store->read_range_path(p->store->self, p->path, offset, buf, cap);
+}
+
 static void on_frame(void *ctx, const uint8_t *frame, size_t len) {
     WcObservation o;
     if (wc_parse_probe_frame(frame, len, &o)) {
@@ -24,31 +34,27 @@ static void on_frame(void *ctx, const uint8_t *frame, size_t len) {
 
 bool wc_import_service_run(const WcStorePort *store, WcClockPort clock, const char *pcap_path,
                            const char *out_basename) {
-    // Size first, then allocate exactly that (never the whole cap): a small pcap stays cheap, and
-    // an oversized one is refused before any big allocation (a failed malloc aborts on hardware).
-    size_t size = store->file_size_path(store->self, pcap_path);
-    if (size == 0 || size > WC_IMPORT_MAX_BYTES) {
+    // Streamed, never held whole: reading the file into one allocation its own size rebooted
+    // the Flipper on a 37 KB capture.
+    if (store->file_size_path(store->self, pcap_path) == 0) {
         return false;
     }
-    uint8_t *buf = malloc(size);
     WcCensus *census = malloc(sizeof(WcCensus));
-    bool ok = false;
-    if (buf && census) {
-        size_t n = store->read_file_path(store->self, pcap_path, buf, size);
-        if (n > 0) {
-            wc_census_init(census);
-            ImportCtx ic = {.census = census, .now = wc_clock_now(&clock)};
-            if (wc_pcap_read(buf, n, on_frame, &ic)) {
-                WcCaptureMeta meta;
-                memset(&meta, 0, sizeof(meta));
-                strncpy(meta.label, out_basename, WC_LABEL_MAX);
-                meta.epoch = ic.now;
-                ok = wc_capture_service_save(store, out_basename, &meta, census);
-            }
-            wc_census_free(census);
-        }
+    if (!census) {
+        return false;
     }
-    free(buf);
+    wc_census_init(census);
+    ImportCtx ic = {.census = census, .now = wc_clock_now(&clock)};
+    PullCtx pc = {.store = store, .path = pcap_path};
+    bool ok = false;
+    if (wc_pcap_stream(pull_from_store, &pc, on_frame, &ic)) {
+        WcCaptureMeta meta;
+        memset(&meta, 0, sizeof(meta));
+        strncpy(meta.label, out_basename, WC_LABEL_MAX);
+        meta.epoch = ic.now;
+        ok = wc_capture_service_save(store, out_basename, &meta, census);
+    }
+    wc_census_free(census);
     free(census);
     return ok;
 }

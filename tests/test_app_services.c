@@ -15,7 +15,7 @@
 // --- in-memory fake store (no mocks, a real working fake) ---
 
 #define FAKE_MAX_FILES 12
-#define FAKE_MAX_BYTES 32768
+#define FAKE_MAX_BYTES 65536
 typedef struct {
     char name[64];
     uint8_t data[FAKE_MAX_BYTES];
@@ -68,6 +68,20 @@ static size_t fake_read(void *self, const char *name, uint8_t *buf, size_t cap) 
     return f->len;
 }
 
+static size_t fake_read_range(void *self, const char *name, size_t offset, uint8_t *buf,
+                              size_t cap) {
+    const FakeFile *f = fake_find(self, name);
+    if (!f || offset >= f->len) {
+        return 0;
+    }
+    size_t n = f->len - offset;
+    if (n > cap) {
+        n = cap;
+    }
+    memcpy(buf, f->data + offset, n);
+    return n;
+}
+
 static size_t fake_file_size(void *self, const char *name) {
     const FakeFile *f = fake_find(self, name);
     return f ? f->len : 0;
@@ -77,6 +91,11 @@ static size_t fake_file_size(void *self, const char *name) {
 // the name-based lookups. Enough to exercise the import service's path plumbing.
 static size_t fake_read_path(void *self, const char *path, uint8_t *buf, size_t cap) {
     return fake_read(self, path, buf, cap);
+}
+
+static size_t fake_read_range_path(void *self, const char *path, size_t offset, uint8_t *buf,
+                                   size_t cap) {
+    return fake_read_range(self, path, offset, buf, cap);
 }
 
 static size_t fake_file_size_path(void *self, const char *path) {
@@ -160,6 +179,8 @@ static WcStorePort fake_store_port(FakeStore *s) {
                      .file_size = fake_file_size,
                      .read_file_path = fake_read_path,
                      .file_size_path = fake_file_size_path,
+                     .read_range = fake_read_range,
+                     .read_range_path = fake_read_range_path,
                      .rename_file = fake_rename,
                      .delete_file = fake_delete,
                      .list = fake_list,

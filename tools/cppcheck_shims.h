@@ -1,11 +1,8 @@
 #pragma once
 
-// Lint-only shim, injected by `make linter` with --include=. cppcheck runs without the
-// firmware SDK, so with_view_model() is an unknown function-like macro whose block argument
-// breaks the parse — and cppcheck then abandons the WHOLE translation unit in silence, which
-// reads like coverage the file does not have. Expanding it here keeps src/views/ genuinely
-// analysed. The two helpers stand in for view_get_model/view_commit_model so the model is
-// neither null nor uninitialized to the analyser, and the view is still seen as written to.
+// Lint-only, injected by `make linter`. Without the SDK, with_view_model() breaks cppcheck's
+// parse and it then abandons the whole file in silence - green while checking nothing. The two
+// helpers stand in for view_get_model/view_commit_model.
 void *wc_lint_view_model(void *view);
 void wc_lint_view_commit(void *view, int update);
 

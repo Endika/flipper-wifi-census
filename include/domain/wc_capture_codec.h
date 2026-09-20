@@ -28,6 +28,13 @@ size_t wc_capture_record_size(void);
 void wc_capture_put_header(uint8_t *out, const WcCaptureMeta *meta, uint16_t count);
 void wc_capture_put_record(uint8_t *out, const WcSignature *d);
 
+// Parse just the header / one record, for reading a capture straight off the SD without ever
+// holding it whole. `wc_capture_get_header` fills `meta` and the device count; both return
+// false on malformed input.
+bool wc_capture_get_header(const uint8_t *in, size_t len, WcCaptureMeta *meta, uint16_t *count,
+                           uint16_t *version);
+bool wc_capture_get_record(const uint8_t *in, size_t len, uint16_t version, WcSignature *out);
+
 // CSV, one piece at a time (for streaming): the header line and one device row. Each writes a
 // NUL-terminated string into `out`/`cap` and returns the full length needed (snprintf-style).
 size_t wc_capture_csv_header(char *out, size_t cap);
@@ -37,12 +44,8 @@ size_t wc_capture_csv_row(char *out, size_t cap, const WcSignature *d);
 // written, or 0 if `cap` is too small.
 size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, const WcCensus *c);
 
-// Parse a binary capture into `c`, which MUST already be initialized; its ceiling is kept, so
-// a host tool that opened its census wide reads a file the Flipper has to turn down. Any
-// previous contents are released. Validates magic, version, and that the declared record count
-// fits the buffer exactly; rejects truncated or malformed input without reading out of bounds,
-// and refuses outright anything that would not fit the ceiling rather than loading part of it.
-// Returns true on success.
+// Parse a capture into `c`, which MUST already be initialized; its ceiling is kept and its
+// contents replaced. Bounds-checked, and refused whole rather than loaded in part.
 bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_t len);
 
 // How many devices a stored capture declares, read from its header alone. Returns 0 when the

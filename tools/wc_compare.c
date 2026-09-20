@@ -1,13 +1,7 @@
-// Host tool: cross two captures and print what they have in common. The Flipper caps each
-// side at WC_CENSUS_MAX_DEVICES and refuses to even open a bigger file, so two venue-sized
-// censuses can only be compared here. Accepts .wcen captures and raw-802.11 .pcap files.
-// Build: `make tool`.
+// Host tool: cross two captures and print what they have in common, past the device ceiling the
+// Flipper has to keep. Accepts .wcen captures and raw-802.11 .pcap files. Build: `make tool`.
 //
 //   wc_compare monday.wcen friday.wcen > common.csv
-//
-// Matches are high confidence by construction: an identical stable MAC, or a directed SSID
-// shared between non-AP devices with at least one randomized side. Randomized devices with no
-// directed SSID never match, and are reported so the number is not mistaken for "everyone".
 
 #include "include/domain/wc_compare.h"
 #include "tools/wc_load.h"

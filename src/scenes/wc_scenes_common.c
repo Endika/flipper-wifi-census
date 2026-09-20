@@ -23,7 +23,7 @@ static void files_list_cb(void *context, const char *name) {
     if (n <= el || strcmp(name + n - el, WC_CAP_EXT) != 0) {
         return;
     }
-    if (app->list_count >= WC_MAX_LIST) {
+    if (app->list_count >= WC_MAX_NAMED) {
         app->list_overflow++; // no room to even name it; the header will say how many
         return;
     }

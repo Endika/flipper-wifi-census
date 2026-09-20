@@ -5,16 +5,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// A selection list shaped like the firmware's Submenu, with one difference: the selected item's
-// text scrolls when it does not fit instead of being cut with an ellipsis. Capture names, MACs
-// and SSIDs are routinely wider than the screen, and the ellipsis hides exactly the part that
-// tells two of them apart.
+// The firmware's Submenu, except the selected row scrolls instead of being cut with an
+// ellipsis - which on a MAC or an SSID hides exactly the part that tells two of them apart.
 //
-// Labels are NOT stored. An item either points at a string the caller keeps alive (a literal,
-// or a buffer inside WcApp), or has its label generated on demand while drawing. At a hundred
-// devices a stored copy costs 64 bytes each - more than the WcSignature it describes - and
-// that cost is what pins the device ceiling, so the list reads the census instead of duplicating
-// it.
+// Labels are not stored: a row either points at a string the caller keeps alive, or has its
+// text generated while drawing. A stored copy costs more per row than the device it describes,
+// and that cost is what pins the device ceiling.
 typedef struct WcScrollList WcScrollList;
 
 typedef void (*WcScrollListCb)(void *context, uint32_t index);
@@ -26,11 +22,9 @@ typedef void (*WcScrollListLabelFn)(const void *context, uint32_t index, char *o
 // The selected item was nudged left (-1) or right (+1).
 typedef void (*WcScrollListNudgeFn)(void *context, uint32_t index, int8_t delta);
 
-// Ceiling on items in one list, and the widest label drawn. Covers the longest list the app
-// builds (WC_MAX_LIST entries plus an "empty" placeholder); extra items are dropped and a
-// longer label is truncated, rather than overflowing. The array is flat and preallocated: a
-// Flipper heap fragmented by a live census is not a place to grow a list.
-#define WC_SCROLL_LIST_MAX 110
+// Rows in one list, and the widest label drawn. Flat and preallocated: a heap fragmented by a
+// live census is no place to grow a list. Extra rows are counted as hidden, never dropped.
+#define WC_SCROLL_LIST_MAX 330
 #define WC_SCROLL_LIST_LABEL_MAX 64
 
 WcScrollList *wc_scroll_list_alloc(void);
@@ -54,8 +48,6 @@ void wc_scroll_list_add_generated(WcScrollList *list, uint16_t count, WcScrollLi
 void wc_scroll_list_set_item_value(WcScrollList *list, uint32_t index, const char *value,
                                    WcScrollListNudgeFn on_nudge, void *context);
 
-// Entries the caller could not even offer, because its own buffers filled first (captures past
-// WC_MAX_LIST, SSIDs past the tally). Added to what the list itself had to refuse; the total is
-// drawn on the header row. The count is what makes a short list honest, so the view draws it
-// itself rather than trusting every scene to remember.
+// Entries the caller could not even offer, because its own buffers filled first. Added to what
+// the list refused and drawn on the header row - the view says it, so no scene can forget.
 void wc_scroll_list_note_hidden(WcScrollList *list, uint16_t n);

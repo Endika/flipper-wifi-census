@@ -1,13 +1,10 @@
-// Host tool: does the IE fingerprint discriminate DEVICES, or only models? And how much does
-// a long capture inflate the count? Both questions are answered from a probe-request pcap.
-// Build: `make tool` (see Makefile).
+// Host tool: does the IE fingerprint tell devices apart, or only models? And how much does a
+// long capture inflate the count? Build: `make tool`.
 //
 //   wc_iefp capture.pcap
 //
-// The decisive test for question one is stable MACs: a stable MAC IS a device identity, so
-// two different stable MACs sharing a fingerprint are provably two devices - a false positive
-// if the fingerprint were ever used to merge. Measured on real captures it runs at 8-13%, and
-// that is a floor: the same over-merging happens invisibly among the randomized MACs.
+// Two stable MACs sharing a fingerprint are provably two devices, which is what makes the
+// false-positive rate measurable rather than guessed.
 
 #include "include/domain/wc_census.h"
 #include "include/domain/wc_pcap_reader.h"
