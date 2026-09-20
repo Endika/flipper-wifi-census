@@ -29,10 +29,13 @@ static bool merge_from_file(const WcStorePort *store, const char *name, WcCensus
         return false;
     }
     uint8_t buf[256];
-    const size_t rec = wc_capture_record_size();
+    const size_t rec = wc_capture_record_size_of(version);
     if (rec > sizeof(buf)) {
         return false;
     }
+    // One reservation up front: growing by reallocs needs the array twice over while it copies,
+    // which is what exhausted the heap before.
+    wc_census_reserve(into, (uint16_t)(into->count + count));
     for (uint16_t i = 0; i < count; i++) {
         WcSignature d;
         if (store->read_range(store->self, name, hdr + (size_t)i * rec, buf, rec) != rec ||

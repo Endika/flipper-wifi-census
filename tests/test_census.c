@@ -306,6 +306,43 @@ static void test_a_shared_ssid_stops_being_an_identity(void) {
     wc_census_free(&c);
 }
 
+// A device only gets folded away when it is one of the two that seek the name. With its SSID
+// slots already full it records none, so it is not a seeker at all - and must not be merged
+// into a stranger that happens to share a name with somebody else.
+static void test_late_link_never_touches_a_non_seeker(void) {
+    WcCensus c;
+    wc_census_init(&c);
+    const uint8_t s1[6] = {0x00, 0x1B, 0x21, 0, 0, 0x01};
+    const uint8_t s2[6] = {0x00, 0x1B, 0x21, 0, 0, 0x02};
+    const uint8_t rnd[6] = {0x02, 0, 0, 0, 0, 0x09};
+
+    // Two certain devices both seek "Cafe": it is a place, not an identity.
+    WcObservation o = obs_of(s1, -50, "Cafe", false);
+    wc_census_observe(&c, &o, 1);
+    o = obs_of(s2, -50, "Cafe", false);
+    wc_census_observe(&c, &o, 2);
+
+    // A rotating phone fills both of its SSID slots with its own networks...
+    o = obs_of(rnd, -50, "HomeA", false);
+    wc_census_observe(&c, &o, 3);
+    o = obs_of(rnd, -50, "WorkB", false);
+    wc_census_observe(&c, &o, 4);
+    assert(c.count == 3);
+    // ...and then probes "Cafe" too, which it has no room to record.
+    o = obs_of(rnd, -50, "Cafe", false);
+    wc_census_observe(&c, &o, 5);
+
+    assert(c.count == 3); // nobody was folded away
+    bool home_still_its_own = false;
+    for (uint16_t i = 0; i < c.count; i++) {
+        if (c.devices[i].mac_random && wc_signature_has_ssid(&c.devices[i], "HomeA")) {
+            home_still_its_own = true;
+        }
+    }
+    assert(home_still_its_own); // its networks did not migrate into a stable device
+    wc_census_free(&c);
+}
+
 int main(void) {
     test_same_mac_is_one_device();
     test_merge_accumulates();
@@ -320,6 +357,7 @@ int main(void) {
     test_stats_carry_the_dropped_count();
     test_late_link_catches_a_blind_birth();
     test_a_shared_ssid_stops_being_an_identity();
+    test_late_link_never_touches_a_non_seeker();
     printf("test_census: OK\n");
     return 0;
 }

@@ -59,6 +59,16 @@ void wc_explain_load_failure(WcApp *app, const char *filename, char *out, size_t
     }
 }
 
+void wc_explain_which_failed(WcApp *app, const char *first, const char *second) {
+    WcCaptureMeta meta;
+    WcCensus probe;
+    wc_census_init(&probe);
+    bool first_loads = wc_capture_service_load(&app->store, first, &meta, &probe);
+    wc_census_free(&probe);
+    wc_explain_load_failure(app, first_loads ? second : first, app->result_text,
+                            WC_RESULT_TEXT_SIZE);
+}
+
 // ---------------------------------------------------------------------------
 // Msg (a one-off message screen)
 // ---------------------------------------------------------------------------

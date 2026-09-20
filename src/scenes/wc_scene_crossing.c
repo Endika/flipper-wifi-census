@@ -64,13 +64,20 @@ static void format_compare(WcApp *app, const WcCompareResult *r) {
     for (uint16_t i = 0; i < r->match_count && len < room; i++) {
         const WcMatch *m = &r->matches[i];
         const char *label = known_label_for(app, m);
+        int n;
         if (m->reason == WcMatchBySsid) {
-            len += snprintf(app->result_text + len, room - len, "- %s [ssid:%s]\n",
-                            label ? label : "device", m->detail);
+            n = snprintf(app->result_text + len, room - len, "- %s [ssid:%s]\n",
+                         label ? label : "device", m->detail);
         } else {
-            len += snprintf(app->result_text + len, room - len,
-                            "- %s %02X:%02X:%02X:%02X:%02X:%02X\n", label ? label : "device",
-                            m->mac[0], m->mac[1], m->mac[2], m->mac[3], m->mac[4], m->mac[5]);
+            n = snprintf(app->result_text + len, room - len, "- %s %02X:%02X:%02X:%02X:%02X:%02X\n",
+                         label ? label : "device", m->mac[0], m->mac[1], m->mac[2], m->mac[3],
+                         m->mac[4], m->mac[5]);
+        }
+        // snprintf returns what it WOULD have written, so a truncated row must not be added
+        // whole: len would run past the buffer and the tail write below would go out of bounds.
+        len += (n > 0) ? (size_t)n : 0;
+        if (len >= room) {
+            len = room - 1;
         }
         shown++;
     }
@@ -90,16 +97,16 @@ bool wc_scene_compare_b_on_event(void *context, SceneManagerEvent event) {
     WcApp *app = context;
     if (pick_capture(app, event, 1)) {
         WcCompareResult *r = malloc(sizeof(WcCompareResult));
-        if (r) {
+        if (!r) {
+            wc_show_message(app, "Not enough memory to\ncompare these two.\n\nTry shorter "
+                                 "captures, or\ncompare them on a PC.");
+            return true;
+        }
+        {
             if (wc_compare_service_run(&app->store, app->picked[0], app->picked[1], r)) {
                 format_compare(app, r);
             } else {
-                wc_explain_load_failure(app, app->picked[0], app->result_text, WC_RESULT_TEXT_SIZE);
-                if (wc_capture_service_device_count(&app->store, app->picked[0]) <=
-                    WC_CENSUS_MAX_DEVICES) {
-                    wc_explain_load_failure(app, app->picked[1], app->result_text,
-                                            WC_RESULT_TEXT_SIZE);
-                }
+                wc_explain_which_failed(app, app->picked[0], app->picked[1]);
             }
             free(r);
             scene_manager_next_scene(app->scene_manager, WcSceneCompareResult);
@@ -210,11 +217,7 @@ bool wc_scene_merge_name_on_event(void *context, SceneManagerEvent event) {
                      "Merged\n%s\n+ %s\n=> %s%s\n\n%u unique devices\n%s", app->picked[0],
                      app->picked[1], app->text_buf, WC_CAP_EXT, devices, tail);
         } else {
-            wc_explain_load_failure(app, app->picked[0], app->result_text, WC_RESULT_TEXT_SIZE);
-            if (wc_capture_service_device_count(&app->store, app->picked[0]) <=
-                WC_CENSUS_MAX_DEVICES) {
-                wc_explain_load_failure(app, app->picked[1], app->result_text, WC_RESULT_TEXT_SIZE);
-            }
+            wc_explain_which_failed(app, app->picked[0], app->picked[1]);
         }
         scene_manager_next_scene(app->scene_manager, WcSceneMergeResult);
         return true;

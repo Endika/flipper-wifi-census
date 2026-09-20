@@ -51,27 +51,13 @@ bool wc_capture_service_save(const WcStorePort *store, const char *basename,
 }
 
 uint16_t wc_capture_service_device_count(const WcStorePort *store, const char *filename) {
-    uint8_t head[64]; // >= wc_capture_header_size()
-    size_t n = wc_capture_header_size();
-    if (n > sizeof(head)) {
+    uint8_t head[64];
+    const size_t hdr = wc_capture_header_size();
+    // The header alone, never the file: this is asked precisely about captures too big to hold.
+    if (hdr > sizeof(head) || store->read_range(store->self, filename, 0, head, hdr) != hdr) {
         return 0;
     }
-    // read_file refuses a buffer smaller than the file, so size the read to the whole file and
-    // fall back to reading just what the header needs.
-    size_t size = store->file_size(store->self, filename);
-    if (size == 0 || size < n) {
-        return 0;
-    }
-    uint8_t *buf = malloc(size);
-    if (!buf) {
-        return 0;
-    }
-    uint16_t count = 0;
-    if (store->read_file(store->self, filename, buf, size) == size) {
-        count = wc_capture_peek_count(buf, size);
-    }
-    free(buf);
-    return count;
+    return wc_capture_peek_count(head, hdr);
 }
 
 bool wc_capture_service_load(const WcStorePort *store, const char *filename, WcCaptureMeta *meta,
