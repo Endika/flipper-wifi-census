@@ -54,11 +54,20 @@ static int32_t worker(void *context) {
     return 0;
 }
 
-static void serial_start(void *self, WcSerialLineFn on_line, void *ctx) {
+static bool serial_start(void *self, WcSerialLineFn on_line, void *ctx) {
     WcSerialFuri *s = self;
     if (s->running) {
-        return;
+        return true;
     }
+    // Acquire the USART first. It returns NULL when another service already holds it (commonly
+    // the firmware's Expansion Modules service, or the CLI on the GPIO pins). Doing this before
+    // any allocation means a busy port costs nothing, leaks nothing, and is reported instead of
+    // crashing the app.
+    s->handle = furi_hal_serial_control_acquire(FuriHalSerialIdUsart);
+    if (!s->handle) {
+        return false;
+    }
+
     s->on_line = on_line;
     s->cb_ctx = ctx;
     wc_lineasm_init(&s->assembler);
@@ -67,13 +76,12 @@ static void serial_start(void *self, WcSerialLineFn on_line, void *ctx) {
     s->thread = furi_thread_alloc_ex("WcSerialRx", 1024, worker, s);
     furi_thread_start(s->thread);
 
-    s->handle = furi_hal_serial_control_acquire(FuriHalSerialIdUsart);
-    furi_check(s->handle);
     furi_hal_serial_init(s->handle, s->baud);
     furi_hal_serial_async_rx_start(s->handle, rx_isr, s, false);
 
     furi_hal_serial_tx(s->handle, (const uint8_t *)k_cmd_start, strlen(k_cmd_start));
     s->running = true;
+    return true;
 }
 
 static void serial_stop(void *self) {

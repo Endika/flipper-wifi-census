@@ -180,10 +180,26 @@ static void scan_render(WcApp *app) {
     widget_add_string_multiline_element(app->widget, 0, 0, AlignLeft, AlignTop, FontSecondary, buf);
 }
 
-static void scan_serial_start(WcApp *app) {
+// Returns false when the USART is busy; the adapter is freed again so nothing dangles.
+static bool scan_serial_start(WcApp *app) {
     app->serial = wc_serial_furi_alloc(app->baud);
     WcSerialPort port = wc_serial_furi_port(app->serial);
-    port.start(port.self, wc_scan_on_line, &app->scan);
+    if (!port.start(port.self, wc_scan_on_line, &app->scan)) {
+        wc_serial_furi_free(app->serial);
+        app->serial = NULL;
+        return false;
+    }
+    return true;
+}
+
+static const char *const k_uart_busy_text =
+    "UART busy\n\nAnother service holds the\nGPIO serial port.\n\nDisable Settings >\nExpansion "
+    "Modules\n(or close the CLI)\nand try again.\n\nBack = menu";
+
+static void scan_show_link_error(WcApp *app) {
+    widget_reset(app->widget);
+    widget_add_text_scroll_element(app->widget, 0, 0, 128, 64, k_uart_busy_text);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewWidget);
 }
 
 static void scan_serial_stop(WcApp *app) {
@@ -226,7 +242,14 @@ void wc_scene_scan_on_enter(void *context) {
         wc_default_name(app->scan_started, "auto", app->autosave_base, sizeof(app->autosave_base));
         app->autosave_idx = 1;
     }
-    scan_serial_start(app);
+    app->scan_link_ok = scan_serial_start(app);
+    if (!app->scan_link_ok) {
+        // Nothing was captured and nothing is running: release the census we just reserved and
+        // explain the problem instead of showing an empty scan that never counts anything.
+        wc_census_free(&app->scan.census);
+        scan_show_link_error(app);
+        return;
+    }
 
     scan_render(app);
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewWidget);
@@ -246,11 +269,24 @@ bool wc_scene_scan_on_event(void *context, SceneManagerEvent event) {
             scan_serial_stop(app);
             scan_save_chunk(app);
             scan_reset_census(app);
-            scan_serial_start(app);
+            if (!scan_serial_start(app)) {
+                // The port went away mid-run: stop cleanly and say so rather than freezing.
+                app->scan_link_ok = false;
+                if (app->scan_timer) {
+                    furi_timer_stop(app->scan_timer);
+                    furi_timer_free(app->scan_timer);
+                    app->scan_timer = NULL;
+                }
+                scan_show_link_error(app);
+            }
         }
         return true;
     }
     if (event.type == SceneManagerEventTypeBack) {
+        if (!app->scan_link_ok) {
+            scene_manager_previous_scene(app->scene_manager); // never started: nothing to save
+            return true;
+        }
         if (app->autosave) {
             // Save the final partial chunk automatically and return to the menu.
             scan_serial_stop(app);
@@ -1167,18 +1203,26 @@ static void debug_on_line(void *ctx, const char *line, size_t len) {
 
 void wc_scene_serial_debug_on_enter(void *context) {
     WcApp *app = context;
-    snprintf(app->debug_buf, sizeof(app->debug_buf), "Waiting for serial...\n");
     app->serial = wc_serial_furi_alloc(app->baud);
     WcSerialPort port = wc_serial_furi_port(app->serial);
-    port.start(port.self, debug_on_line, app);
+    bool ok = port.start(port.self, debug_on_line, app);
+    if (!ok) {
+        wc_serial_furi_free(app->serial);
+        app->serial = NULL;
+        snprintf(app->debug_buf, sizeof(app->debug_buf), "%s", k_uart_busy_text);
+    } else {
+        snprintf(app->debug_buf, sizeof(app->debug_buf), "Waiting for serial...\n");
+    }
 
     text_box_reset(app->text_box);
     text_box_set_font(app->text_box, TextBoxFontText);
     text_box_set_text(app->text_box, app->debug_buf);
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewTextBox);
 
-    app->scan_timer = furi_timer_alloc(scan_timer_cb, FuriTimerTypePeriodic, app);
-    furi_timer_start(app->scan_timer, furi_ms_to_ticks(400));
+    if (ok) {
+        app->scan_timer = furi_timer_alloc(scan_timer_cb, FuriTimerTypePeriodic, app);
+        furi_timer_start(app->scan_timer, furi_ms_to_ticks(400));
+    }
 }
 
 bool wc_scene_serial_debug_on_event(void *context, SceneManagerEvent event) {

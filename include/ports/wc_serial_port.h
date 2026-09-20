@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -12,6 +13,9 @@ typedef void (*WcSerialLineFn)(void *ctx, const char *line, size_t len);
 // furi_hal_serial and reassembles lines; tests inject canned lines through a fake.
 typedef struct {
     void *self;
-    void (*start)(void *self, WcSerialLineFn on_line, void *ctx);
+    // Returns false when the link could not be opened — typically the USART is already held by
+    // another service (the firmware's Expansion Modules service, or the CLI on the GPIO pins).
+    // Nothing is allocated or started in that case, so the caller can simply report it.
+    bool (*start)(void *self, WcSerialLineFn on_line, void *ctx);
     void (*stop)(void *self);
 } WcSerialPort;
