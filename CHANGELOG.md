@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.22](https://github.com/Endika/flipper-wifi-census/compare/v0.1.21...v0.1.22) (2026-09-20)
+
+
+### Bug Fixes
+
+* report a busy UART instead of crashing, and list every device in a capture ([940cdbf](https://github.com/Endika/flipper-wifi-census/commit/940cdbff8d4cf26b8fd9c30c86c1ae285e232686))
+
 ## [0.1.21](https://github.com/Endika/flipper-wifi-census/compare/v0.1.20...v0.1.21) (2026-09-20)
 
 

@@ -1,3 +1,3 @@
 #pragma once
 
-#define WIFI_CENSUS_VERSION "0.1.21" // x-release-please-version
+#define WIFI_CENSUS_VERSION "0.1.22" // x-release-please-version
