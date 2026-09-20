@@ -65,11 +65,20 @@ bool wc_census_reserve(WcCensus *c, uint16_t n);
 // Fold one observation into the census, deduping into an existing device or adding a new
 // one. Dedup rules, in order:
 //   1. exact MAC match -> same device (repeated frames from the current MAC);
-//   2. else, a client probe carrying a directed SSID already recorded on an existing
-//      client device -> linked to it (collapses MAC rotation and shared-SSID clients);
+//   2. else, a randomized-MAC probe naming a directed SSID that EXACTLY ONE known client
+//      seeks -> linked to it (collapses MAC rotation);
 //   3. else -> a new device.
 // Rule 2 never links into an access point, and randomized MACs with no directed SSID are
 // never merged across MACs (counted separately, reported as not-linkable).
+//
+// Two refinements, both measured on real captures rather than assumed:
+//   - A name sought by two devices is a place, not an identity ("DefaultSSID" was seen on 16
+//     distinct STABLE MACs in one capture), so it stops being usable for linking. Two stable
+//     MACs are never merged, whatever they both seek.
+//   - A device whose first probe carried no name is recorded blind, and rule 2 would never
+//     look at it again (1982 of 2171 creations in a real capture). So a device that names a
+//     network LATE is checked then too, and folded in if that name identifies one other
+//     device and this one rotates its MAC.
 // Returns the new/updated signature, or NULL if the table was full.
 WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t now);
 

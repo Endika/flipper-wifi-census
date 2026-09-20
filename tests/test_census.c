@@ -262,6 +262,50 @@ static void test_stats_carry_the_dropped_count(void) {
     wc_census_free(&c);
 }
 
+// A phone whose first probe carried no name is recorded blind; the SSID rule must look again
+// when it names a network later, or the rotation it exists to defeat slips past it.
+static void test_late_link_catches_a_blind_birth(void) {
+    WcCensus c;
+    wc_census_init(&c);
+    const uint8_t r1[6] = {0x02, 0, 0, 0, 0, 0x01};
+    const uint8_t r2[6] = {0x06, 0, 0, 0, 0, 0x02};
+
+    WcObservation o = obs_of(r1, -50, "MiCasa_4G", false);
+    wc_census_observe(&c, &o, 1);
+    // A different randomized MAC shows up with a nameless probe first: recorded blind.
+    o = obs_of(r2, -50, NULL, false);
+    wc_census_observe(&c, &o, 2);
+    assert(c.count == 2);
+    // ...and only then asks for the same network. That is the same phone, rotated.
+    o = obs_of(r2, -50, "MiCasa_4G", false);
+    wc_census_observe(&c, &o, 3);
+    assert(c.count == 1);
+    assert(wc_signature_has_ssid(&c.devices[0], "MiCasa_4G"));
+    wc_census_free(&c);
+}
+
+// Measured on real captures: "DefaultSSID" was sought by 16 devices with distinct stable MACs.
+// A name shared by two certain identities is a place, and must stop being usable as one.
+static void test_a_shared_ssid_stops_being_an_identity(void) {
+    WcCensus c;
+    wc_census_init(&c);
+    const uint8_t s1[6] = {0x00, 0x1B, 0x21, 0, 0, 0x01};
+    const uint8_t s2[6] = {0x00, 0x1B, 0x21, 0, 0, 0x02};
+    const uint8_t rnd[6] = {0x02, 0, 0, 0, 0, 0x09};
+
+    WcObservation o = obs_of(s1, -50, "DefaultSSID", false);
+    wc_census_observe(&c, &o, 1);
+    o = obs_of(s2, -50, "DefaultSSID", false);
+    wc_census_observe(&c, &o, 2);
+    assert(c.count == 2); // two stable MACs are two devices, whatever they both seek
+
+    // Now a rotating phone asks for it too. It must NOT be folded into either of them.
+    o = obs_of(rnd, -50, "DefaultSSID", false);
+    wc_census_observe(&c, &o, 3);
+    assert(c.count == 3);
+    wc_census_free(&c);
+}
+
 int main(void) {
     test_same_mac_is_one_device();
     test_merge_accumulates();
@@ -274,6 +318,8 @@ int main(void) {
     test_table_full_drops();
     test_phone_bound();
     test_stats_carry_the_dropped_count();
+    test_late_link_catches_a_blind_birth();
+    test_a_shared_ssid_stops_being_an_identity();
     printf("test_census: OK\n");
     return 0;
 }
