@@ -42,6 +42,11 @@ size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, con
 // Returns true on success.
 bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_t len);
 
+// How many devices a stored capture declares, read from its header alone. Returns 0 when the
+// buffer is not a capture. Lets a caller tell "this file holds more devices than this build can
+// open" apart from "this file is broken" - the same refusal otherwise reads as corruption.
+uint16_t wc_capture_peek_count(const uint8_t *buf, size_t len);
+
 // Render a human-readable CSV of the capture into `out` (NUL-terminated). Returns the length
 // that a full render needs (excluding the NUL); if it is >= `cap` the output was truncated.
 size_t wc_capture_to_csv(char *out, size_t cap, const WcCaptureMeta *meta, const WcCensus *c);

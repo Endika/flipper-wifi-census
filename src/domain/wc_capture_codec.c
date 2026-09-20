@@ -110,6 +110,13 @@ size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, con
     return need;
 }
 
+uint16_t wc_capture_peek_count(const uint8_t *buf, size_t len) {
+    if (len < WC_HEADER_SIZE || memcmp(buf, k_magic, sizeof(k_magic)) != 0) {
+        return 0;
+    }
+    return get_u16(buf + WC_HEADER_SIZE - 2);
+}
+
 bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_t len) {
     if (len < WC_HEADER_SIZE) {
         return false;
