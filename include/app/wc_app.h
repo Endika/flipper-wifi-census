@@ -94,6 +94,7 @@ typedef struct {
     char list_names[WC_MAX_LIST][WC_TEXT_BUF_SIZE];
     uint16_t list_counts[WC_MAX_LIST]; // devices per SSID, for the networks rows
     uint16_t list_count;
+    uint16_t list_overflow;       // entries the list could not hold, so the screen can say so
     char menu_autosave_label[24]; // the list borrows it, so it cannot live on the stack
 
     char debug_buf[512]; // rolling raw serial lines for the Serial debug view

@@ -110,7 +110,9 @@ bool wc_scene_file_actions_on_event(void *context, SceneManagerEvent event) {
             if (ensure_browse_loaded(app)) {
                 show_capture_summary(app);
             } else {
-                wc_show_message(app, "Could not read the capture.");
+                wc_explain_load_failure(app, app->selected_file, app->result_text,
+                                        WC_RESULT_TEXT_SIZE);
+                scene_manager_next_scene(app->scene_manager, WcSceneMsg);
             }
             return true;
         case ActionDevices:
@@ -314,7 +316,11 @@ void wc_scene_networks_on_enter(void *context) {
     if (app->browse_census) {
         WcSsidTally *t = malloc(sizeof(WcSsidTally) * WC_MAX_LIST);
         if (t) {
+            // The tally returns the true number of distinct SSIDs, which can exceed what the
+            // list holds (a device probes up to two). Remember the overflow instead of
+            // quietly showing the first WC_MAX_LIST of them.
             uint16_t n = wc_census_ssid_tally(app->browse_census, t, WC_MAX_LIST);
+            app->list_overflow = (n > WC_MAX_LIST) ? (uint16_t)(n - WC_MAX_LIST) : 0;
             for (uint16_t i = 0; i < n && i < WC_MAX_LIST; i++) {
                 strncpy(app->list_names[i], t[i].ssid, WC_TEXT_BUF_SIZE - 1);
                 app->list_names[i][WC_TEXT_BUF_SIZE - 1] = '\0';
@@ -325,6 +331,11 @@ void wc_scene_networks_on_enter(void *context) {
         }
     }
     if (app->list_count > 0) {
+        if (app->list_overflow > 0) {
+            char header[48];
+            snprintf(header, sizeof(header), "Networks (%u more not shown)", app->list_overflow);
+            wc_scroll_list_set_header(app->list_view, header);
+        }
         wc_scroll_list_add_generated(app->list_view, app->list_count, network_label, wc_list_cb,
                                      app);
     } else {

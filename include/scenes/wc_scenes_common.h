@@ -19,3 +19,8 @@ void wc_populate_files(WcApp *app, const char *header);
 
 // Show a one-off scrollable message and move to the Msg scene.
 void wc_show_message(WcApp *app, const char *text);
+
+// Write why `filename` would not open. A capture holding more devices than this build's ceiling
+// is refused by the loader exactly like a corrupt one, and "could not read" then sends you
+// hunting for a broken file instead of telling you it is simply bigger than the Flipper.
+void wc_explain_load_failure(WcApp *app, const char *filename, char *out, size_t cap);

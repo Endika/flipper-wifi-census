@@ -201,6 +201,37 @@ static void test_csv(void) {
     assert(small[15] == '\0' || strlen(small) < sizeof(small));
 }
 
+// Peeking the count must work from the header alone: it is what lets the app say "this file
+// holds 187 devices and this build opens 100" instead of "could not read".
+static void test_peek_count_from_header(void) {
+    WcCensus c;
+    wc_census_init(&c);
+    for (uint16_t i = 0; i < 7; i++) {
+        WcSignature sig;
+        memset(&sig, 0, sizeof(sig));
+        sig.mac[5] = (uint8_t)i;
+        assert(wc_census_add(&c, &sig));
+    }
+    WcCaptureMeta meta;
+    memset(&meta, 0, sizeof(meta));
+    snprintf(meta.label, sizeof(meta.label), "peek");
+    size_t need = wc_capture_size(&c);
+    uint8_t *buf = malloc(need);
+    assert(buf);
+    assert(wc_capture_write(buf, need, &meta, &c) == need);
+
+    assert(wc_capture_peek_count(buf, need) == 7);
+    // The header alone is enough - no need for the records to be present.
+    assert(wc_capture_peek_count(buf, wc_capture_header_size()) == 7);
+    // Not a capture, and too short to be one.
+    const uint8_t junk[64] = {'N', 'O', 'P', 'E'};
+    assert(wc_capture_peek_count(junk, sizeof(junk)) == 0);
+    assert(wc_capture_peek_count(buf, 4) == 0);
+
+    free(buf);
+    wc_census_free(&c);
+}
+
 int main(void) {
     test_round_trip();
     test_rejects_capture_over_cap();
@@ -209,6 +240,7 @@ int main(void) {
     test_read_rejects_bad_input();
     test_read_rejects_truncation();
     test_csv();
+    test_peek_count_from_header();
     printf("test_codec: OK\n");
     return 0;
 }

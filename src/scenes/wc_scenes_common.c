@@ -40,6 +40,18 @@ void wc_populate_files(WcApp *app, const char *header) {
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }
 
+void wc_explain_load_failure(WcApp *app, const char *filename, char *out, size_t cap) {
+    uint16_t count = wc_capture_service_device_count(&app->store, filename);
+    if (count > WC_CENSUS_MAX_DEVICES) {
+        snprintf(out, cap,
+                 "%s holds\n%u devices.\nThis build opens %u.\n\nNothing is lost: merge\n"
+                 "or compare it on a PC\n(see the README).",
+                 filename, count, (unsigned)WC_CENSUS_MAX_DEVICES);
+    } else {
+        snprintf(out, cap, "Could not read\n%s.", filename);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Msg (a one-off message screen)
 // ---------------------------------------------------------------------------

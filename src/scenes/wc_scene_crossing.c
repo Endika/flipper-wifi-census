@@ -50,22 +50,34 @@ void wc_scene_compare_a_on_exit(void *context) {
     wc_scroll_list_reset(app->list_view);
 }
 
+// The match list is bounded twice over - by WC_COMPARE_MAX_MATCHES and by this text buffer -
+// so it says how many of them it is actually showing. A list that just stops looks like the
+// crossing found fewer devices than it did.
 static void format_compare(WcApp *app, const WcCompareResult *r) {
     size_t len = 0;
     len += snprintf(app->result_text + len, WC_RESULT_TEXT_SIZE - len,
                     "A:%u B:%u  common:%u\nrandom(not crossable) A:%u B:%u\n", r->na, r->nb,
                     r->intersection, r->random_a, r->random_b);
-    for (uint16_t i = 0; i < r->match_count && len < WC_RESULT_TEXT_SIZE - 1; i++) {
+    // Keep room for the "showing N of M" line, so the warning can never itself be cut off.
+    const size_t room = WC_RESULT_TEXT_SIZE - 48;
+    uint16_t shown = 0;
+    for (uint16_t i = 0; i < r->match_count && len < room; i++) {
         const WcMatch *m = &r->matches[i];
         const char *label = known_label_for(app, m);
         if (m->reason == WcMatchBySsid) {
-            len += snprintf(app->result_text + len, WC_RESULT_TEXT_SIZE - len, "- %s [ssid:%s]\n",
+            len += snprintf(app->result_text + len, room - len, "- %s [ssid:%s]\n",
                             label ? label : "device", m->detail);
         } else {
-            len += snprintf(app->result_text + len, WC_RESULT_TEXT_SIZE - len,
+            len += snprintf(app->result_text + len, room - len,
                             "- %s %02X:%02X:%02X:%02X:%02X:%02X\n", label ? label : "device",
                             m->mac[0], m->mac[1], m->mac[2], m->mac[3], m->mac[4], m->mac[5]);
         }
+        shown++;
+    }
+    if (shown < r->intersection) {
+        snprintf(app->result_text + len, WC_RESULT_TEXT_SIZE - len,
+                 "\n(listing %u of %u -\nthe count above is\nthe whole answer)\n", shown,
+                 r->intersection);
     }
 }
 
@@ -82,7 +94,12 @@ bool wc_scene_compare_b_on_event(void *context, SceneManagerEvent event) {
             if (wc_compare_service_run(&app->store, app->picked[0], app->picked[1], r)) {
                 format_compare(app, r);
             } else {
-                snprintf(app->result_text, WC_RESULT_TEXT_SIZE, "Could not load captures.");
+                wc_explain_load_failure(app, app->picked[0], app->result_text, WC_RESULT_TEXT_SIZE);
+                if (wc_capture_service_device_count(&app->store, app->picked[0]) <=
+                    WC_CENSUS_MAX_DEVICES) {
+                    wc_explain_load_failure(app, app->picked[1], app->result_text,
+                                            WC_RESULT_TEXT_SIZE);
+                }
             }
             free(r);
             scene_manager_next_scene(app->scene_manager, WcSceneCompareResult);
@@ -193,7 +210,11 @@ bool wc_scene_merge_name_on_event(void *context, SceneManagerEvent event) {
                      "Merged\n%s\n+ %s\n=> %s%s\n\n%u unique devices\n%s", app->picked[0],
                      app->picked[1], app->text_buf, WC_CAP_EXT, devices, tail);
         } else {
-            snprintf(app->result_text, WC_RESULT_TEXT_SIZE, "Merge failed (could not read files).");
+            wc_explain_load_failure(app, app->picked[0], app->result_text, WC_RESULT_TEXT_SIZE);
+            if (wc_capture_service_device_count(&app->store, app->picked[0]) <=
+                WC_CENSUS_MAX_DEVICES) {
+                wc_explain_load_failure(app, app->picked[1], app->result_text, WC_RESULT_TEXT_SIZE);
+            }
         }
         scene_manager_next_scene(app->scene_manager, WcSceneMergeResult);
         return true;
