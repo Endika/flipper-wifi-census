@@ -168,6 +168,31 @@ The inflation factor is not a constant — a crowded place also holds many phone
 model — but across every capture we took, a **60-second window barely inflates at all**. Short
 scans, repeated, beat one long one. They also fit comfortably under the device ceiling.
 
+## Undo MAC rotation in a long capture
+
+A long scan does not find more people, it finds the same people under more MAC addresses. Many
+phones keep counting their 802.11 sequence number straight through a MAC change, so two
+addresses whose counters meet at the moment one stops and the other starts are one phone:
+
+```sh
+./wc_clean capture.pcap                        # what each threshold would do
+./wc_clean -w 10 -s 4 -o clean.wcen capture.pcap
+```
+
+Nothing is taken on trust. A stable MAC cannot rotate, so the same rule applied to stable MACs
+can only ever be wrong, and that count is printed as the capture's own error rate:
+
+| window | seq gap | links | provably wrong |
+|---|---|---|---|
+| 10 s | 4 | 96 | **0** |
+| 30 s | 8 | 485 | 3 |
+| 60 s | 16 | 1170 | 10 |
+
+At 10 s the 2,247-device capture above becomes 2,077 with no demonstrable mistake; at 60 s it
+halves, but ten certain identities are already being merged wrongly, so whatever it claims about
+the randomized ones cannot be believed either. Zero here means "none among the stable MACs in
+this capture", not zero.
+
 ## The phone count is a range, not a number
 
 **Summary** on a stored capture shows how many phones are behind the randomized MACs, as a
@@ -209,9 +234,9 @@ CSV row per device that turns up in more than one capture, with which ones. With
 captures of the same place, that last column is the question you took them to answer: who keeps
 coming back.
 
-One caveat the tool cannot fix for you: **your own kit travels with you**, so it will be in
-every capture and will top that list. Tag your own devices in **Known devices** and you can tell
-them apart from the strangers.
+One caveat: **your own kit travels with you**, so it is in every capture and tops that list. The
+tool does not try to guess which devices are yours — you know your own MACs, and the CSV has a
+column for them.
 
 `-o` makes both tools write a `.wcen` as well as the CSV, and that capture merges and compares
 again like any other. Without it the PC side was a dead end: CSV is the one format nothing reads
@@ -223,6 +248,7 @@ back, so merges could not be chained and a census built on a laptop could never 
 | `wc_merge` | any number of `.wcen` / `.pcap` | all of them deduplicated, same two outputs |
 | `wc_compare` | 2 to 12 `.wcen` / `.pcap` | who is in which, as CSV, plus an overlap matrix |
 | `wc_iefp` | one `.pcap` | whether the IE fingerprint discriminates, and the duration table |
+| `wc_clean` | one `.pcap` | the same capture with MAC rotation undone, and its own error rate |
 
 A `.wcen` built this way can hold far more than the Flipper's 320: it opens on a laptop, and on
 the device the app says how many devices it holds and that it is too large, rather than claiming

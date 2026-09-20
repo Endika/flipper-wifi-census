@@ -259,7 +259,8 @@ linter:
 		tools/wc_import.c \
 		tools/wc_merge.c \
 		tools/wc_iefp.c \
-		tools/wc_compare.c
+		tools/wc_compare.c \
+		tools/wc_clean.c
 
 # --- build the .fap via the firmware tree (ufbt/fbt; not available in this sandbox) ---
 prepare:
@@ -288,6 +289,7 @@ tool:
 	$(CC) $(CFLAGS) -o wc_merge tools/wc_merge.c $(TOOL_DOMAIN)
 	$(CC) $(CFLAGS) -o wc_iefp tools/wc_iefp.c $(TOOL_DOMAIN)
 	$(CC) $(CFLAGS) -o wc_compare tools/wc_compare.c $(TOOL_DOMAIN)
+	$(CC) $(CFLAGS) -o wc_clean tools/wc_clean.c $(TOOL_DOMAIN)
 
 clean:
-	rm -f *.o tests/*.o $(TEST_BINS) wc_import wc_merge wc_iefp wc_compare
+	rm -f *.o tests/*.o $(TEST_BINS) wc_import wc_merge wc_iefp wc_compare wc_clean

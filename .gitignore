@@ -13,3 +13,4 @@ wc_compare
 # Capture output and LibreOffice locks, never the repo
 *.csv
 .~lock.*#
+wc_clean
