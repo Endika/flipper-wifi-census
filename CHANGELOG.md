@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.31](https://github.com/Endika/flipper-wifi-census/compare/v0.1.30...v0.1.31) (2026-09-20)
+
+
+### Documentation
+
+* say that the fap is not byte-reproducible ([8c261fa](https://github.com/Endika/flipper-wifi-census/commit/8c261faebfa97810568041837f3e570aca7f748f))
+
 ## [0.1.30](https://github.com/Endika/flipper-wifi-census/compare/v0.1.29...v0.1.30) (2026-09-20)
 
 
