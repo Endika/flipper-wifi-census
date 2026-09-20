@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.30](https://github.com/Endika/flipper-wifi-census/compare/v0.1.29...v0.1.30) (2026-09-20)
+
+
+### Features
+
+* compare the networks two captures seek, not just their devices ([35bf469](https://github.com/Endika/flipper-wifi-census/commit/35bf4692dceca575108986b34f7eac9795458475))
+
 ## [0.1.29](https://github.com/Endika/flipper-wifi-census/compare/v0.1.28...v0.1.29) (2026-09-20)
 
 
