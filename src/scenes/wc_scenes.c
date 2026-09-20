@@ -959,12 +959,23 @@ bool wc_scene_merge_name_on_event(void *context, SceneManagerEvent event) {
     WcApp *app = context;
     if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventTextDone) {
         uint16_t devices = 0;
-        bool ok =
-            wc_merge_service_run(&app->store, app->merge_a, app->merge_b, app->text_buf, &devices);
+        uint16_t dropped = 0;
+        bool ok = wc_merge_service_run(&app->store, app->merge_a, app->merge_b, app->text_buf,
+                                       &devices, &dropped);
         if (ok) {
+            // A merge past the ceiling still saves a valid file, so say what it cost: the loss
+            // is otherwise indistinguishable from two captures that simply overlapped a lot.
+            char tail[96];
+            if (dropped > 0) {
+                snprintf(tail, sizeof(tail),
+                         "%u dropped (%u max)\nMerge on a PC to\nkeep them all\n(back = menu)",
+                         dropped, (unsigned)WC_CENSUS_MAX_DEVICES);
+            } else {
+                snprintf(tail, sizeof(tail), "(back = menu)");
+            }
             snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
-                     "Merged\n%s\n+ %s\n=> %s%s\n\n%u unique devices\n(back = menu)", app->merge_a,
-                     app->merge_b, app->text_buf, WC_CAP_EXT, devices);
+                     "Merged\n%s\n+ %s\n=> %s%s\n\n%u unique devices\n%s", app->merge_a,
+                     app->merge_b, app->text_buf, WC_CAP_EXT, devices, tail);
         } else {
             snprintf(app->result_text, WC_RESULT_TEXT_SIZE, "Merge failed (could not read files).");
         }
