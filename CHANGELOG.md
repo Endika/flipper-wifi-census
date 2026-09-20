@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.1.23](https://github.com/Endika/flipper-wifi-census/compare/v0.1.22...v0.1.23) (2026-09-20)
+
+
+### Features
+
+* compare two captures on a PC, past the Flipper's 100-device limit ([8c3cfa7](https://github.com/Endika/flipper-wifi-census/commit/8c3cfa79efc3fd8ffe1105ae8a00ebd28c341a83))
+* decide auto-save from the menu and scroll long list entries ([656156e](https://github.com/Endika/flipper-wifi-census/commit/656156e411f48ff52bfe9df4e68c279c90629fb8))
+* flip auto-save with left and right on the Scan row itself ([07d1873](https://github.com/Endika/flipper-wifi-census/commit/07d1873dffdcb04fa23bd17e0d6b870083e4024a))
+* let the host tools write captures, not just CSV ([211ca41](https://github.com/Endika/flipper-wifi-census/commit/211ca412e2b3ff91f4ff0b37107dfc8573bd38bd))
+* say how many devices a merge dropped at the ceiling ([950af4b](https://github.com/Endika/flipper-wifi-census/commit/950af4b1ff8a612be81b05d5a894e7b6ac0c1f10))
+* summarize a stored capture and bound the phones behind its random MACs ([798f201](https://github.com/Endika/flipper-wifi-census/commit/798f2016b63bed7893ad56c265815e8f14799428))
+
+
+### Bug Fixes
+
+* a wifi name shared by two devices is a place, not an identity ([eeeb4fe](https://github.com/Endika/flipper-wifi-census/commit/eeeb4fe3818f9aaddb99aff8769cc12401e4d875))
+* lint the list view for real, and reject an oversized settings file ([e169cd5](https://github.com/Endika/flipper-wifi-census/commit/e169cd5d3f8857abc8f922bc9bb2b45005b13312))
+* never hide what was cut, from the pcap tools to every list on screen ([3c45e09](https://github.com/Endika/flipper-wifi-census/commit/3c45e09e481deb93ce098a7be98ee183a791a9b6))
+* say what a capture, a merge or a comparison could not show ([ca4713e](https://github.com/Endika/flipper-wifi-census/commit/ca4713e03287b8994075f23f9ee95c91dc593c52))
+
+
+### Performance Improvements
+
+* render list rows from the census instead of storing a copy of every label ([e47305b](https://github.com/Endika/flipper-wifi-census/commit/e47305bb7af73e39a2ddc957762629fc41294455))
+* stream captures off the SD and raise the device ceiling to 320 ([4745979](https://github.com/Endika/flipper-wifi-census/commit/47459795a37bbd19768fa2ee2363df62df5f13a2))
+
 ## [0.1.22](https://github.com/Endika/flipper-wifi-census/compare/v0.1.21...v0.1.22) (2026-09-20)
 
 
