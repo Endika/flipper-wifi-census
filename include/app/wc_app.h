@@ -76,9 +76,9 @@ typedef struct {
     char text_buf[WC_TEXT_BUF_SIZE]; // capture/label entry
     char selected_file[WC_TEXT_BUF_SIZE];
     char import_path[128]; // absolute path of a pcap picked in the file browser
-    char compare_a[WC_TEXT_BUF_SIZE];
-    char merge_a[WC_TEXT_BUF_SIZE];
-    char merge_b[WC_TEXT_BUF_SIZE];
+    // Compare and Merge are both "pick two captures, then act", so they share the two slots
+    // the picker scenes fill instead of carrying a field each.
+    char picked[2][WC_TEXT_BUF_SIZE];
     char result_text[WC_RESULT_TEXT_SIZE];
     WcCensus *browse_census; // loaded capture, heap, freed on scene exit
     WcCaptureMeta browse_meta;
