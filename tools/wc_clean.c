@@ -58,6 +58,9 @@ static int root_of(int i) {
 // Walk the pcap records directly: the per-frame timestamp and sequence number are what the
 // linking needs, and neither survives into a census.
 static bool scan_spans(const uint8_t *b, size_t sz) {
+    if (!wc_tool_is_classic_le_pcap(b, sz)) {
+        return false;
+    }
     double t0 = -1;
     for (size_t o = 24; o + 16 <= sz;) {
         uint32_t ts = b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | ((uint32_t)b[o + 3] << 24);
@@ -192,7 +195,10 @@ int main(int argc, char **argv) {
     fclose(f);
 
     if (!scan_spans(buf, (size_t)sz)) {
-        fprintf(stderr, "%s: no probe requests found (linktype 105 pcap expected)\n", path);
+        fprintf(stderr,
+                "%s: not a classic little-endian libpcap of linktype 105, or no probe "
+                "requests in it\n",
+                path);
         return 1;
     }
     qsort(g_span, (size_t)g_spans, sizeof(MacSpan), by_first_t);

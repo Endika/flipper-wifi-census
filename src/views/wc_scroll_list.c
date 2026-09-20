@@ -246,6 +246,13 @@ static bool wc_scroll_list_input_callback(InputEvent *event, void *context) {
 
 static void wc_scroll_list_timer_callback(void *context) {
     WcScrollList *list = context;
+    bool overflows = false;
+    with_view_model(
+        list->view, const WcScrollListModel *model, { overflows = model->selected_overflows; },
+        false);
+    if (!overflows) {
+        return; // a menu where every row fits must not repaint three times a second
+    }
     with_view_model(list->view, WcScrollListModel * model, { model->scroll_counter++; }, true);
 }
 

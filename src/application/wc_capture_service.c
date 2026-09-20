@@ -78,19 +78,29 @@ bool wc_capture_service_stream(const WcStorePort *store, const char *filename, W
         return false;
     }
     const size_t rec = wc_capture_record_size_of(version);
-    uint8_t buf[256];
+    // Records are read in blocks, not one by one: the store opens, seeks, reads and closes on
+    // every call, and a 320-device capture is 320 of those against the SD where a handful do.
+    uint8_t buf[1024];
     if (rec > sizeof(buf)) {
         return false;
     }
+    const uint16_t per_block = (uint16_t)(sizeof(buf) / rec);
     // The declared count must account for the file exactly, as the buffered reader also checks.
     if (store->file_size(store->self, filename) != hdr + (size_t)count * rec) {
         return false;
     }
-    for (uint16_t i = 0; i < count; i++) {
-        WcSignature d;
-        if (store->read_range(store->self, filename, hdr + (size_t)i * rec, buf, rec) != rec ||
-            !wc_capture_get_record(buf, rec, version, &d) || !on_device(ctx, &d)) {
+    for (uint16_t i = 0; i < count;) {
+        const uint16_t want = (count - i < per_block) ? (uint16_t)(count - i) : per_block;
+        const size_t n = (size_t)want * rec;
+        if (store->read_range(store->self, filename, hdr + (size_t)i * rec, buf, n) != n) {
             return false;
+        }
+        for (uint16_t j = 0; j < want; j++, i++) {
+            WcSignature d;
+            if (!wc_capture_get_record(buf + (size_t)j * rec, rec, version, &d) ||
+                !on_device(ctx, &d)) {
+                return false;
+            }
         }
     }
     return true;

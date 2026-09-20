@@ -117,7 +117,8 @@ static void known_row_label(const void *context, uint32_t index, char *out, size
     if (k->type == WcRuleBySsid) {
         snprintf(out, cap, "%s [ssid:%s]", k->label, k->ssid);
     } else {
-        snprintf(out, cap, "%s [%02X:%02X:%02X]", k->label, k->mac[0], k->mac[1], k->mac[2]);
+        snprintf(out, cap, "%s [%02X:%02X:%02X:%02X:%02X:%02X]", k->label, k->mac[0], k->mac[1],
+                 k->mac[2], k->mac[3], k->mac[4], k->mac[5]);
     }
 }
 
