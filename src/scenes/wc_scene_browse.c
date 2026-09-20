@@ -56,6 +56,9 @@ typedef enum {
 static bool ensure_browse_loaded(WcApp *app) {
     if (!app->browse_census) {
         app->browse_census = malloc(sizeof(WcCensus));
+        if (app->browse_census) {
+            wc_census_init(app->browse_census); // the reader keeps the ceiling it is handed
+        }
     }
     return app->browse_census && wc_capture_service_load(&app->store, app->selected_file,
                                                          &app->browse_meta, app->browse_census);
@@ -331,11 +334,7 @@ void wc_scene_networks_on_enter(void *context) {
         }
     }
     if (app->list_count > 0) {
-        if (app->list_overflow > 0) {
-            char header[48];
-            snprintf(header, sizeof(header), "Networks (%u more not shown)", app->list_overflow);
-            wc_scroll_list_set_header(app->list_view, header);
-        }
+        wc_scroll_list_note_hidden(app->list_view, app->list_overflow);
         wc_scroll_list_add_generated(app->list_view, app->list_count, network_label, wc_list_cb,
                                      app);
     } else {

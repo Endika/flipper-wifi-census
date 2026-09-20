@@ -50,22 +50,39 @@ void wc_scene_mark_label_on_enter(void *context) {
 bool wc_scene_mark_label_on_event(void *context, SceneManagerEvent event) {
     WcApp *app = context;
     if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventTextDone) {
+        // The outcome decides what the user is told. Dropping it made a full registry, an
+        // undurable device and a failed write all look like success.
+        bool ok = false;
         switch (app->mark_mode) {
             case WcMarkSsid:
-                wc_known_service_mark_ssid(&app->store, app->selected_ssid, app->text_buf);
+                ok = wc_known_service_mark_ssid(&app->store, app->selected_ssid, app->text_buf);
                 break;
             case WcMarkRename:
-                wc_known_service_rename(&app->store, app->selected_known, app->text_buf);
+                ok = wc_known_service_rename(&app->store, app->selected_known, app->text_buf);
                 break;
             case WcMarkDevice:
             default:
                 if (app->browse_census && app->selected_device < app->browse_census->count) {
                     const WcSignature *sig = &app->browse_census->devices[app->selected_device];
-                    wc_known_service_mark(&app->store, sig, app->text_buf);
+                    ok = wc_known_service_mark(&app->store, sig, app->text_buf);
                 }
                 break;
         }
         wc_known_service_load(&app->store, &app->known);
+        if (!ok) {
+            if (app->known.count >= WC_KNOWN_MAX) {
+                snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
+                         "Not saved.\n\nThe known registry is\nfull (%u rules).\nDelete one "
+                         "first.",
+                         (unsigned)WC_KNOWN_MAX);
+            } else {
+                snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
+                         "Not saved.\n\nThis device gives no\ndurable rule: a random\nMAC that "
+                         "names no\nnetwork cannot be\nrecognised again.");
+            }
+            scene_manager_next_scene(app->scene_manager, WcSceneMsg);
+            return true;
+        }
         scene_manager_previous_scene(app->scene_manager);
         return true;
     }

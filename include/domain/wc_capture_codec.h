@@ -37,8 +37,11 @@ size_t wc_capture_csv_row(char *out, size_t cap, const WcSignature *d);
 // written, or 0 if `cap` is too small.
 size_t wc_capture_write(uint8_t *buf, size_t cap, const WcCaptureMeta *meta, const WcCensus *c);
 
-// Parse a binary capture. Validates magic, version, and that the declared record count fits
-// the buffer exactly; rejects truncated or malformed input without reading out of bounds.
+// Parse a binary capture into `c`, which MUST already be initialized; its ceiling is kept, so
+// a host tool that opened its census wide reads a file the Flipper has to turn down. Any
+// previous contents are released. Validates magic, version, and that the declared record count
+// fits the buffer exactly; rejects truncated or malformed input without reading out of bounds,
+// and refuses outright anything that would not fit the ceiling rather than loading part of it.
 // Returns true on success.
 bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_t len);
 
