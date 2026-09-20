@@ -9,6 +9,8 @@ uploaded anywhere.
 | Main menu | Live scan |
 |:---:|:---:|
 | ![Main menu](assets/menu.png) | ![Live scan: unique/stable/random counts, types, networks sought](assets/sniff.png) |
+| **Device detail** | **Networks sought** |
+| ![Device detail: MAC, vendor, signal and the networks it probes for](assets/device-detail.png) | ![Networks list, select one to tag it as known](assets/networks.png) |
 
 ## What it can and cannot tell you (please read)
 
@@ -22,7 +24,11 @@ tool has to be clear about its limits:
   over-estimated** and **cannot be reliably matched across locations**. To recognize a
   friend's device across places, add it to the **Known devices** list — either its stable
   MAC, or use the shared-SSID trick (have them join a network whose name you control once;
-  phones keep a stable MAC *per network*, so it matches in both places).
+  phones keep a stable MAC *per network*, so it matches in both places). A phone that only
+  sends wildcard probes can't be pinned at all — the app tells you so instead of pretending:
+
+  <img src="assets/device-detail-random.png" alt="Detail of a randomized device with no named network: cannot be saved as known" width="320">
+
 - Capture is **passive only**: it reads the management frames devices broadcast in the
   clear. No deauth, no injection, no association, no decryption.
 - Imported captures (see below) also carry an **IE fingerprint** and a **vendor hint from
