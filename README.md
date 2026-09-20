@@ -175,6 +175,25 @@ make tool
 accepts `.wcen` captures and `.pcap` files mixed, producing one CSV of the whole venue —
 thousands of devices if needed.
 
+Two merged censuses are also too big for the Flipper to compare — it cannot even open a file
+of more than 100 devices — so the crossing has a host tool of its own:
+
+```sh
+./wc_compare monday.wcen friday.wcen > common.csv
+```
+
+It prints the matched devices as CSV on stdout and the summary on stderr: how many devices each
+side holds, how many are in both, and split by why they matched (identical stable MAC, or a
+shared named network). The randomized devices that can never be crossed are reported too, so
+the intersection is read against the crossable part and not against everyone.
+
+| tool | takes | gives |
+|---|---|---|
+| `wc_import` | one `.pcap` | that capture as CSV |
+| `wc_merge` | any number of `.wcen` / `.pcap` | all of them deduplicated, as CSV |
+| `wc_compare` | two `.wcen` / `.pcap` | what they have in common, as CSV |
+| `wc_iefp` | one `.pcap` | whether the IE fingerprint discriminates, and the duration table |
+
 ## Building
 
 Host-side domain logic is plain C and unit-tested with gcc; `furi` is confined to the

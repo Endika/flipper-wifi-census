@@ -4,7 +4,12 @@
 
 #include <stddef.h>
 
+// How many matches are listed in detail. The intersection COUNT is always exact; only the
+// listing stops here. The host tools raise it (-D) because two merged censuses can share far
+// more devices than a Flipper capture ever holds.
+#ifndef WC_COMPARE_MAX_MATCHES
 #define WC_COMPARE_MAX_MATCHES WC_CENSUS_MAX_DEVICES
+#endif
 
 typedef enum {
     WcMatchByMac = 0, // same stable MAC in both captures

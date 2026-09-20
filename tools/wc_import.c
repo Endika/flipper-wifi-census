@@ -14,10 +14,9 @@
 #include <string.h>
 
 static void on_frame(void *ctx, const uint8_t *frame, size_t len) {
-    WcCensus *c = ctx;
     WcObservation o;
     if (wc_parse_probe_frame(frame, len, &o)) {
-        wc_census_observe(c, &o, 0);
+        wc_census_observe(ctx, &o, 0);
     }
 }
 
@@ -49,6 +48,10 @@ int main(int argc, char **argv) {
     fclose(f);
 
     WcCensus *c = malloc(sizeof(WcCensus));
+    if (!c) {
+        free(buf);
+        return 1;
+    }
     wc_census_init(c);
     if (!wc_pcap_read(buf, (size_t)size, on_frame, c)) {
         fprintf(stderr, "not a supported pcap (need classic libpcap, linktype 105 IEEE802.11)\n");
