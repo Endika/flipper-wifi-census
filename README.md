@@ -6,6 +6,10 @@ a renamable file on the SD card, and lets you **compare captures from different 
 to see how many devices overlap. Everything stays local on the Flipper's SD — nothing is
 uploaded anywhere.
 
+| Main menu | Live scan |
+|:---:|:---:|
+| ![Main menu](assets/menu.png) | ![Live scan: unique/stable/random counts, types, networks sought](assets/sniff.png) |
+
 ## What it can and cannot tell you (please read)
 
 Modern phones deliberately randomize their MAC address to avoid being tracked, so an honest
