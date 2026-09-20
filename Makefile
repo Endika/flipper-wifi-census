@@ -276,6 +276,7 @@ TOOL_DOMAIN = src/domain/wc_pcap_reader.c src/domain/wc_probe_frame.c src/domain
 tool:
 	$(CC) $(CFLAGS) -o wc_import tools/wc_import.c $(TOOL_DOMAIN)
 	$(CC) $(CFLAGS) -o wc_merge tools/wc_merge.c $(TOOL_DOMAIN)
+	$(CC) $(CFLAGS) -o wc_iefp tools/wc_iefp.c $(TOOL_DOMAIN)
 
 clean:
-	rm -f *.o tests/*.o $(TEST_BINS) wc_import wc_merge
+	rm -f *.o tests/*.o $(TEST_BINS) wc_import wc_merge wc_iefp

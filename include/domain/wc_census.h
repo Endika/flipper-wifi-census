@@ -72,6 +72,15 @@ WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t n
 
 WcCensusStats wc_census_stats(const WcCensus *c);
 
+// Bound how many PHONES are behind the randomized MACs. Measured on real captures, an IE
+// fingerprint identifies a phone model, not a phone (51 devices shared one), so it must never
+// merge devices - but two randomized MACs with DIFFERENT fingerprints are certainly two
+// phones, and one phone rotating its MAC keeps the same fingerprint. So:
+//   distinct fingerprints <= phones <= randomized MACs.
+// Returns false when no device carries a fingerprint (a live UART scan reads summary lines,
+// not frames), and then no bound can be stated at all.
+bool wc_census_phone_bound(const WcCensus *c, uint16_t *min_phones, uint16_t *max_phones);
+
 // Merge every device of `src` into `dst` using the same dedup rules as a live session (same
 // stable MAC, or a shared directed SSID for a randomized device), accumulating stats. Used
 // to combine captures of one place taken on different days. Overflow bumps dst->dropped.

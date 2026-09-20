@@ -189,6 +189,59 @@ static void test_merge_no_false_link(void) {
     assert(a.count == 2); // distinct stable MACs, not merged by shared SSID
 }
 
+// The bound is the only honest use of the fingerprint: it groups phone MODELS, so it can put
+// a floor under the phone count without ever merging two devices into one.
+static void test_phone_bound(void) {
+    WcCensus c;
+    wc_census_init(&c);
+    uint16_t lo = 0, hi = 0;
+
+    // A live scan carries no fingerprints at all -> no bound can be stated.
+    const uint8_t stable[6] = {0x00, 0x1B, 0x21, 0x00, 0x00, 0x01};
+    const uint8_t rnd1[6] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x01};
+    WcObservation o = obs_of(stable, -50, "Net", false);
+    wc_census_observe(&c, &o, 1);
+    o = obs_of(rnd1, -50, NULL, false);
+    wc_census_observe(&c, &o, 1);
+    assert(!wc_census_phone_bound(&c, &lo, &hi));
+
+    // Three randomized MACs, two of them the same model: 2..3 phones, never 2 devices.
+    const uint8_t rnd2[6] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x02};
+    const uint8_t rnd3[6] = {0x06, 0x00, 0x00, 0x00, 0x00, 0x03};
+    wc_census_free(&c);
+    wc_census_init(&c);
+    o = obs_of(rnd1, -50, NULL, false);
+    o.ie_hash = 0xAAAA;
+    wc_census_observe(&c, &o, 1);
+    o = obs_of(rnd2, -50, NULL, false);
+    o.ie_hash = 0xAAAA; // same model as rnd1
+    wc_census_observe(&c, &o, 1);
+    o = obs_of(rnd3, -50, NULL, false);
+    o.ie_hash = 0xBBBB;
+    wc_census_observe(&c, &o, 1);
+    assert(c.count == 3); // the fingerprint must NOT have merged anything
+    assert(wc_census_phone_bound(&c, &lo, &hi));
+    assert(lo == 2);
+    assert(hi == 3);
+
+    // A stable MAC is its own identity and never enters the bound.
+    o = obs_of(stable, -50, "Net", false);
+    o.ie_hash = 0xAAAA;
+    wc_census_observe(&c, &o, 1);
+    assert(wc_census_phone_bound(&c, &lo, &hi));
+    assert(lo == 2 && hi == 3);
+
+    // A randomized device with no fingerprint cannot join a group: it lifts the floor alone.
+    const uint8_t rnd4[6] = {0x0A, 0x00, 0x00, 0x00, 0x00, 0x04};
+    o = obs_of(rnd4, -50, NULL, false);
+    wc_census_observe(&c, &o, 1);
+    assert(wc_census_phone_bound(&c, &lo, &hi));
+    assert(lo == 3);
+    assert(hi == 4);
+
+    wc_census_free(&c);
+}
+
 int main(void) {
     test_same_mac_is_one_device();
     test_merge_accumulates();
@@ -199,6 +252,7 @@ int main(void) {
     test_ap_not_linked_to_client_by_ssid();
     test_stats();
     test_table_full_drops();
+    test_phone_bound();
     printf("test_census: OK\n");
     return 0;
 }

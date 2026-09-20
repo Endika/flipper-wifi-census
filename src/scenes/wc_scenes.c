@@ -410,6 +410,7 @@ void wc_scene_files_on_exit(void *context) {
 // ---------------------------------------------------------------------------
 
 typedef enum {
+    ActionSummary,
     ActionDevices,
     ActionNetworks,
     ActionRename,
@@ -449,10 +450,38 @@ void wc_scene_msg_on_exit(void *context) {
     widget_reset(app->widget);
 }
 
+// A stored capture had no summary at all: its numbers only ever existed on the live scan
+// screen. The phone bound only appears for captures imported from a pcap - a UART scan reads
+// Marauder's summary lines, which carry no IE fingerprint to bound anything with.
+static void show_capture_summary(WcApp *app) {
+    const WcCensus *c = app->browse_census;
+    WcCensusStats s = wc_census_stats(c);
+    uint16_t lo = 0, hi = 0;
+    char phones[160];
+    if (wc_census_phone_bound(c, &lo, &hi)) {
+        snprintf(phones, sizeof(phones),
+                 "\nPhones behind those\nrandom MACs: %u-%u\n(same model shares a\nfingerprint, so "
+                 "the\nlow end is a floor)",
+                 lo, hi);
+    } else {
+        snprintf(phones, sizeof(phones),
+                 "\nNo IE fingerprints:\nimport a pcap to bound\nthe phone count.");
+    }
+    snprintf(
+        app->result_text, WC_RESULT_TEXT_SIZE,
+        "%s\n\nDevices: %u\nStable: %u\nRandom: %u (%u%%)\n\nPhone %u  Laptop %u\nIoT %u  AP %u\n"
+        "Networks sought: %u\n%s",
+        app->selected_file, s.total, s.unique_stable, s.random_count, s.pct_random,
+        s.by_type[WcDevicePhone], s.by_type[WcDeviceLaptop], s.by_type[WcDeviceIot],
+        s.by_type[WcDeviceAp], s.networks, phones);
+    scene_manager_next_scene(app->scene_manager, WcSceneMsg);
+}
+
 void wc_scene_file_actions_on_enter(void *context) {
     WcApp *app = context;
     wc_scroll_list_reset(app->list_view);
     wc_scroll_list_set_header(app->list_view, app->selected_file);
+    wc_scroll_list_add_item(app->list_view, "Summary", ActionSummary, wc_list_cb, app);
     wc_scroll_list_add_item(app->list_view, "Devices", ActionDevices, wc_list_cb, app);
     wc_scroll_list_add_item(app->list_view, "Networks sought", ActionNetworks, wc_list_cb, app);
     wc_scroll_list_add_item(app->list_view, "Rename", ActionRename, wc_list_cb, app);
@@ -466,6 +495,13 @@ bool wc_scene_file_actions_on_event(void *context, SceneManagerEvent event) {
         return false;
     }
     switch (event.event) {
+        case ActionSummary:
+            if (ensure_browse_loaded(app)) {
+                show_capture_summary(app);
+            } else {
+                show_message(app, "Could not read the capture.");
+            }
+            return true;
         case ActionDevices:
             if (ensure_browse_loaded(app)) {
                 scene_manager_next_scene(app->scene_manager, WcSceneDevices);

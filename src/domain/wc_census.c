@@ -112,6 +112,45 @@ WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t n
     return slot;
 }
 
+bool wc_census_phone_bound(const WcCensus *c, uint16_t *min_phones, uint16_t *max_phones) {
+    uint16_t randoms = 0, distinct = 0;
+    bool any_fingerprint = false;
+    for (uint16_t i = 0; i < c->count; i++) {
+        const WcSignature *d = &c->devices[i];
+        if (!d->mac_random) {
+            continue;
+        }
+        randoms++;
+        if (d->ie_hash == 0) {
+            continue; // no frame-level data for this one: it can only count as its own phone
+        }
+        any_fingerprint = true;
+        bool seen = false;
+        for (uint16_t j = 0; j < i; j++) {
+            if (c->devices[j].mac_random && c->devices[j].ie_hash == d->ie_hash) {
+                seen = true;
+                break;
+            }
+        }
+        if (!seen) {
+            distinct++;
+        }
+    }
+    if (!any_fingerprint) {
+        return false;
+    }
+    // A randomized device with no fingerprint cannot be folded into any group, so it raises
+    // the floor by one on its own.
+    for (uint16_t i = 0; i < c->count; i++) {
+        if (c->devices[i].mac_random && c->devices[i].ie_hash == 0) {
+            distinct++;
+        }
+    }
+    *min_phones = distinct;
+    *max_phones = randoms;
+    return true;
+}
+
 WcCensusStats wc_census_stats(const WcCensus *c) {
     WcCensusStats s;
     memset(&s, 0, sizeof(s));

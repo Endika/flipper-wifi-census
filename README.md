@@ -130,6 +130,37 @@ devices. Pressing Back saves the final chunk too. You then merge all the pieces 
 below) into one census of the whole venue. A brief moment is lost at each rotation while the
 file is written.
 
+## How long should a scan be?
+
+Measured on our own captures (`make tool && ./wc_iefp capture.pcap` prints the table): a long
+scan does not count more people, it counts the same people more times. Splitting one 822-second
+capture into growing windows, the stable-MAC devices double while the randomized ones multiply
+by ten — a device that does not randomize is counted once however long you listen, a phone that
+rotates its MAC is counted again every few minutes.
+
+| window | devices | stable | randomized |
+|---|---|---|---|
+| 60 s | 45 | 26 | 19 |
+| 240 s | 247 | 52 | 195 |
+| 900 s | 510 | 103 | 407 |
+
+The inflation factor is not a constant — a crowded place also holds many phones of the same
+model — but across every capture we took, a **60-second window barely inflates at all**. Short
+scans, repeated, beat one long one. They also fit comfortably under the 100-device ceiling.
+
+## The phone count is a range, not a number
+
+**Summary** on a stored capture shows how many phones are behind the randomized MACs, as a
+range. The IE fingerprint from a pcap identifies a phone *model*, not a phone — we measured one
+fingerprint shared by 51 devices, and 8-13% of stable MACs (which are certain identities) would
+be wrongly merged if it were used to match. So it never merges anything. But two randomized
+MACs with *different* fingerprints are certainly two phones, which puts an honest floor under
+the count: `distinct fingerprints <= phones <= randomized MACs`.
+
+The range only appears for captures imported from a pcap. A live scan reads Marauder's summary
+lines, which carry no fingerprint, so nothing can be bounded — the Summary says so instead of
+inventing a number.
+
 ## Combine many captures on a PC (beyond the device limit)
 
 A single Flipper scan or merge is capped at 100 devices (its RAM). To census a huge venue,
