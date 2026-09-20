@@ -372,7 +372,7 @@ static void test_merge_service_end_to_end(void) {
     snprintf(meta.label, sizeof(meta.label), "d2");
     assert(wc_capture_service_save(&store, "d2", &meta, &d2.census));
 
-    assert(wc_merge_service_run(&store, "d1" WC_CAP_EXT, "d2" WC_CAP_EXT, "acc", NULL));
+    assert(wc_merge_service_run(&store, "d1" WC_CAP_EXT, "d2" WC_CAP_EXT, "acc", NULL, NULL));
 
     WcCaptureMeta mm;
     WcCensus *merged = calloc(1, sizeof(WcCensus));
@@ -491,10 +491,69 @@ static void test_settings_service_defaults_roundtrip_and_corruption(void) {
     free(store_data);
 }
 
+// A merge that overflows the ceiling must still succeed AND say what it threw away: the count
+// alone reads exactly like two captures that happened to overlap.
+static void test_merge_service_reports_what_the_ceiling_dropped(void) {
+    FakeStore *store_data = calloc(1, sizeof(FakeStore));
+    assert(store_data);
+    WcStorePort store = fake_store_port(store_data);
+
+    WcCensus *full = calloc(1, sizeof(WcCensus));
+    WcCensus *more = calloc(1, sizeof(WcCensus));
+    assert(full && more);
+    wc_census_init(full);
+    wc_census_init(more);
+    // Two disjoint sets of stable MACs, each filling the ceiling on its own.
+    for (uint16_t i = 0; i < WC_CENSUS_MAX_DEVICES; i++) {
+        WcSignature sig;
+        memset(&sig, 0, sizeof(sig));
+        sig.mac[0] = 0x00;
+        sig.mac[1] = 0x1B;
+        sig.mac[2] = 0x21;
+        sig.mac[4] = (uint8_t)(i >> 8);
+        sig.mac[5] = (uint8_t)i;
+        sig.obs_count = 1;
+        sig.mac[3] = 0xAA;
+        assert(wc_census_add(full, &sig));
+        sig.mac[3] = 0xBB;
+        assert(wc_census_add(more, &sig));
+    }
+    assert(full->count == WC_CENSUS_MAX_DEVICES);
+
+    WcCaptureMeta meta;
+    memset(&meta, 0, sizeof(meta));
+    snprintf(meta.label, sizeof(meta.label), "full");
+    assert(wc_capture_service_save(&store, "full", &meta, full));
+    snprintf(meta.label, sizeof(meta.label), "more");
+    assert(wc_capture_service_save(&store, "more", &meta, more));
+
+    uint16_t devices = 0;
+    uint16_t dropped = 0;
+    assert(wc_merge_service_run(&store, "full" WC_CAP_EXT, "more" WC_CAP_EXT, "both", &devices,
+                                &dropped));
+    assert(devices == WC_CENSUS_MAX_DEVICES);
+    assert(dropped == WC_CENSUS_MAX_DEVICES); // none of the second file fitted
+
+    // A merge that fits reports nothing dropped, so the warning cannot cry wolf.
+    uint16_t d2 = 0;
+    uint16_t dropped2 = 1;
+    assert(
+        wc_merge_service_run(&store, "full" WC_CAP_EXT, "full" WC_CAP_EXT, "same", &d2, &dropped2));
+    assert(d2 == WC_CENSUS_MAX_DEVICES);
+    assert(dropped2 == 0);
+
+    wc_census_free(full);
+    wc_census_free(more);
+    free(full);
+    free(more);
+    free(store_data);
+}
+
 int main(void) {
     test_scan_service_builds_census();
     test_import_service_from_pcap();
     test_merge_service_end_to_end();
+    test_merge_service_reports_what_the_ceiling_dropped();
     test_capture_save_load_and_csv();
     test_compare_service_end_to_end();
     test_known_service_mark_and_match();

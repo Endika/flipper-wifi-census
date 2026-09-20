@@ -15,7 +15,7 @@ static uint32_t max_u32(uint32_t a, uint32_t b) {
 }
 
 bool wc_merge_service_run(const WcStorePort *store, const char *name_a, const char *name_b,
-                          const char *out_basename, uint16_t *out_devices) {
+                          const char *out_basename, uint16_t *out_devices, uint16_t *out_dropped) {
     WcCensus *a = malloc(sizeof(WcCensus));
     WcCensus *b = malloc(sizeof(WcCensus));
     bool ok = false;
@@ -41,6 +41,9 @@ bool wc_merge_service_run(const WcStorePort *store, const char *name_a, const ch
             ok = wc_capture_service_save(store, out_basename, &out, a);
             if (ok && out_devices) {
                 *out_devices = a->count;
+            }
+            if (ok && out_dropped) {
+                *out_dropped = a->dropped;
             }
         }
     }
