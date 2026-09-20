@@ -287,7 +287,7 @@ tool:
 	$(CC) $(CFLAGS) -o wc_import tools/wc_import.c $(TOOL_DOMAIN)
 	$(CC) $(CFLAGS) -o wc_merge tools/wc_merge.c $(TOOL_DOMAIN)
 	$(CC) $(CFLAGS) -o wc_iefp tools/wc_iefp.c $(TOOL_DOMAIN)
-	$(CC) $(CFLAGS) -DWC_COMPARE_MAX_MATCHES=60000 -o wc_compare tools/wc_compare.c $(TOOL_DOMAIN)
+	$(CC) $(CFLAGS) -o wc_compare tools/wc_compare.c $(TOOL_DOMAIN)
 
 clean:
 	rm -f *.o tests/*.o $(TEST_BINS) wc_import wc_merge wc_iefp wc_compare

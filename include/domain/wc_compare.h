@@ -37,3 +37,8 @@ typedef struct {
 // devices with no directed SSID never match and are surfaced via random_a / random_b so the
 // caller can be honest that they are not crossable.
 void wc_compare(WcCompareResult *r, const WcCensus *a, const WcCensus *b);
+
+// The device in `c` that is the same as `sig` under those rules, or NULL. Lets a caller ask
+// the question across more than two captures: who was at all of them.
+const WcSignature *wc_compare_find(const WcCensus *c, const WcSignature *sig, WcMatchReason *reason,
+                                   char *shared_ssid);

@@ -201,12 +201,17 @@ of more than 320 devices — so the crossing has a host tool of its own:
 
 ```sh
 ./wc_compare monday.wcen friday.wcen > common.csv
+./wc_compare mon.pcap tue.pcap wed.pcap > seen.csv   # up to 12 at once
 ```
 
-It prints the matched devices as CSV on stdout and the summary on stderr: how many devices each
-side holds, how many are in both, and split by why they matched (identical stable MAC, or a
-shared named network). The randomized devices that can never be crossed are reported too, so
-the intersection is read against the crossable part and not against everyone.
+stderr gets the totals and a matrix of how many devices each pair has in common; stdout gets a
+CSV row per device that turns up in more than one capture, with which ones. With several
+captures of the same place, that last column is the question you took them to answer: who keeps
+coming back.
+
+One caveat the tool cannot fix for you: **your own kit travels with you**, so it will be in
+every capture and will top that list. Tag your own devices in **Known devices** and you can tell
+them apart from the strangers.
 
 `-o` makes both tools write a `.wcen` as well as the CSV, and that capture merges and compares
 again like any other. Without it the PC side was a dead end: CSV is the one format nothing reads
@@ -216,7 +221,7 @@ back, so merges could not be chained and a census built on a laptop could never 
 |---|---|---|
 | `wc_import` | one `.pcap` | that capture as CSV, and with `-o` a `.wcen` |
 | `wc_merge` | any number of `.wcen` / `.pcap` | all of them deduplicated, same two outputs |
-| `wc_compare` | two `.wcen` / `.pcap` | what they have in common, as CSV |
+| `wc_compare` | 2 to 12 `.wcen` / `.pcap` | who is in which, as CSV, plus an overlap matrix |
 | `wc_iefp` | one `.pcap` | whether the IE fingerprint discriminates, and the duration table |
 
 A `.wcen` built this way can hold far more than the Flipper's 320: it opens on a laptop, and on
