@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define WC_TOOL_MAX_DEVICES 60000 // off-device ceiling: effectively "all of them"
 
@@ -19,6 +20,25 @@ static inline void wc_tool_on_frame(void *ctx, const uint8_t *frame, size_t len)
     if (wc_parse_probe_frame(frame, len, &o)) {
         wc_census_observe(ctx, &o, 0);
     }
+}
+
+// Write a census as a .wcen, streamed record by record so a venue-sized one needs no buffer of
+// its own size. Without this the host tools could only emit CSV, which nothing reads back: no
+// chained merges, and no way to bring a PC-built census to the Flipper.
+static inline bool wc_tool_write_wcen(const char *path, const WcCaptureMeta *meta,
+                                      const WcCensus *c) {
+    FILE *f = fopen(path, "wb");
+    if (!f) {
+        return false;
+    }
+    uint8_t rec[256];
+    wc_capture_put_header(rec, meta, c->count);
+    bool ok = fwrite(rec, 1, wc_capture_header_size(), f) == wc_capture_header_size();
+    for (uint16_t i = 0; ok && i < c->count; i++) {
+        wc_capture_put_record(rec, &c->devices[i]);
+        ok = fwrite(rec, 1, wc_capture_record_size(), f) == wc_capture_record_size();
+    }
+    return (fclose(f) == 0) && ok;
 }
 
 // Loads `path` into `into` (already init'd). Returns false if the file is neither format.

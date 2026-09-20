@@ -1,15 +1,21 @@
-// Host tool: merge many capture files into one census, printed as CSV on stdout. The Flipper
-// caps a single scan/merge at WC_CENSUS_MAX_DEVICES for RAM reasons; on a PC there is no such
-// limit, so you can capture a big venue as several 100-device files and combine them all here.
-// Accepts .wcen captures and raw-802.11 .pcap files, mixed. Build: `make tool`.
+// Host tool: merge many captures into one census, printed as CSV on stdout. The Flipper caps a
+// scan or merge at WC_CENSUS_MAX_DEVICES for RAM; here there is no such limit, so a big venue
+// can be captured in pieces and combined. Accepts .wcen and raw-802.11 .pcap, mixed.
 //
-//   wc_merge part1.wcen part2.wcen scan.pcap ... > all.csv
+//   wc_merge part1.wcen scan.pcap ... > all.csv
+//   wc_merge -o all.wcen part1.wcen ...     also writes a capture, which merges again later
 
 #include "tools/wc_load.h"
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "usage: %s file1.wcen [file2.wcen|scan.pcap ...] > all.csv\n", argv[0]);
+    const char *out_wcen = NULL;
+    int first = 1;
+    if (argc > 2 && strcmp(argv[1], "-o") == 0) {
+        out_wcen = argv[2];
+        first = 3;
+    }
+    if (first >= argc) {
+        fprintf(stderr, "usage: %s [-o out.wcen] file1 [file2|scan.pcap ...] > all.csv\n", argv[0]);
         return 2;
     }
     WcCensus *acc = malloc(sizeof(WcCensus));
@@ -19,7 +25,7 @@ int main(int argc, char **argv) {
     wc_census_init(acc);
     wc_census_set_max(acc, WC_TOOL_MAX_DEVICES);
 
-    for (int i = 1; i < argc; i++) {
+    for (int i = first; i < argc; i++) {
         WcCensus part;
         wc_census_init(&part);
         wc_census_set_max(&part, WC_TOOL_MAX_DEVICES);
@@ -41,6 +47,17 @@ int main(int argc, char **argv) {
     }
     fprintf(stderr, "= merged: %u devices (stable %u, random %u), networks sought: %u\n", s.total,
             s.unique_stable, s.random_count, s.networks);
+
+    WcCaptureMeta meta;
+    memset(&meta, 0, sizeof(meta));
+    snprintf(meta.label, sizeof(meta.label), "%s", out_wcen ? out_wcen : "merged");
+    if (out_wcen) {
+        if (!wc_tool_write_wcen(out_wcen, &meta, acc)) {
+            fprintf(stderr, "! could not write %s\n", out_wcen);
+            return 1;
+        }
+        fprintf(stderr, "= wrote %s (%u devices)\n", out_wcen, acc->count);
+    }
 
     size_t csv_len = wc_capture_to_csv(NULL, 0, &(WcCaptureMeta){0}, acc);
     char *csv = malloc(csv_len + 1);

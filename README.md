@@ -187,6 +187,7 @@ capture it as several files and merge them all on a laptop, where there is no su
 ```sh
 make tool
 ./wc_merge part1.wcen part2.wcen scan.pcap ... > all.csv
+./wc_merge -o all.wcen part1.wcen scan.pcap ...   # also writes a capture
 ```
 
 `wc_merge` deduplicates across every file (a device seen in two of them is counted once) and
@@ -205,12 +206,20 @@ side holds, how many are in both, and split by why they matched (identical stabl
 shared named network). The randomized devices that can never be crossed are reported too, so
 the intersection is read against the crossable part and not against everyone.
 
+`-o` makes both tools write a `.wcen` as well as the CSV, and that capture merges and compares
+again like any other. Without it the PC side was a dead end: CSV is the one format nothing reads
+back, so merges could not be chained and a census built on a laptop could never come home.
+
 | tool | takes | gives |
 |---|---|---|
-| `wc_import` | one `.pcap` | that capture as CSV |
-| `wc_merge` | any number of `.wcen` / `.pcap` | all of them deduplicated, as CSV |
+| `wc_import` | one `.pcap` | that capture as CSV, and with `-o` a `.wcen` |
+| `wc_merge` | any number of `.wcen` / `.pcap` | all of them deduplicated, same two outputs |
 | `wc_compare` | two `.wcen` / `.pcap` | what they have in common, as CSV |
 | `wc_iefp` | one `.pcap` | whether the IE fingerprint discriminates, and the duration table |
+
+A `.wcen` built this way can hold far more than the Flipper's 320: it opens on a laptop, and on
+the device the app says how many devices it holds and that it is too large, rather than claiming
+the file is unreadable.
 
 ## Building
 
