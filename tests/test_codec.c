@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static WcSignature *add_device(WcCensus *c, const uint8_t mac[6], bool random, WcDeviceType type,
@@ -62,6 +63,37 @@ static void test_round_trip(void) {
     assert(c2.devices[1].type == WcDevicePhone);
     assert(c2.devices[0].ie_hash == 0xDEADBEEFu);
     assert(c2.devices[0].ie_vendor == WcVendorApple);
+}
+
+// A capture holding more devices than a live scan's ceiling must still read back: files made
+// before the live ceiling was lowered (or on a higher-cap build) stay openable. Regression for
+// "Devices/Networks show nothing when opening a denser capture".
+static void test_reads_capture_larger_than_live_cap(void) {
+    const uint16_t big = WC_CENSUS_MAX_DEVICES + 50; // above the live ceiling, below READ_MAX
+    WcCensus c;
+    wc_census_init(&c);
+    wc_census_set_max(&c, big); // the writer side is unconstrained here
+    for (uint16_t i = 0; i < big; i++) {
+        uint8_t mac[6] = {0x00, 0x1B, 0x21, (uint8_t)(i >> 8), (uint8_t)i, 0x01};
+        add_device(&c, mac, false, WcDeviceLaptop, -60, 1, 100, 200);
+    }
+    assert(c.count == big);
+
+    WcCaptureMeta meta;
+    memset(&meta, 0, sizeof(meta));
+    meta.epoch = 1758200000u;
+    size_t need = wc_capture_size(&c);
+    uint8_t *buf = malloc(need);
+    assert(buf);
+    assert(wc_capture_write(buf, need, &meta, &c) == need);
+
+    WcCaptureMeta m2;
+    WcCensus c2;
+    assert(wc_capture_read(&m2, &c2, buf, need)); // used to fail once the live cap dropped to 100
+    assert(c2.count == big);
+    wc_census_free(&c2);
+    wc_census_free(&c);
+    free(buf);
 }
 
 static void test_reads_v1_capture(void) {
@@ -173,6 +205,7 @@ static void test_csv(void) {
 
 int main(void) {
     test_round_trip();
+    test_reads_capture_larger_than_live_cap();
     test_reads_v1_capture();
     test_write_rejects_small_buffer();
     test_read_rejects_bad_input();
