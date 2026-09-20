@@ -249,7 +249,11 @@ linter:
 		tests/test_line_assembler.c \
 		tests/test_app_services.c \
 		tests/test_timefmt.c \
-		tests/test_probe_frame.c
+		tests/test_probe_frame.c \
+		tools/wc_import.c \
+		tools/wc_merge.c \
+		tools/wc_iefp.c \
+		tools/wc_compare.c
 
 # --- build the .fap via the firmware tree (ufbt/fbt; not available in this sandbox) ---
 prepare:
@@ -271,12 +275,13 @@ fap: prepare clean_firmware clean
 		cd $(FLIPPER_FIRMWARE_PATH) && ./fbt fap_$(FAP_APPID); \
 	fi
 
-TOOL_DOMAIN = src/domain/wc_pcap_reader.c src/domain/wc_probe_frame.c src/domain/wc_observation.c src/domain/wc_signature.c src/domain/wc_census.c src/domain/wc_capture_codec.c
+TOOL_DOMAIN = src/domain/wc_compare.c src/domain/wc_pcap_reader.c src/domain/wc_probe_frame.c src/domain/wc_observation.c src/domain/wc_signature.c src/domain/wc_census.c src/domain/wc_capture_codec.c
 
 tool:
 	$(CC) $(CFLAGS) -o wc_import tools/wc_import.c $(TOOL_DOMAIN)
 	$(CC) $(CFLAGS) -o wc_merge tools/wc_merge.c $(TOOL_DOMAIN)
 	$(CC) $(CFLAGS) -o wc_iefp tools/wc_iefp.c $(TOOL_DOMAIN)
+	$(CC) $(CFLAGS) -DWC_COMPARE_MAX_MATCHES=60000 -o wc_compare tools/wc_compare.c $(TOOL_DOMAIN)
 
 clean:
-	rm -f *.o tests/*.o $(TEST_BINS) wc_import wc_merge wc_iefp
+	rm -f *.o tests/*.o $(TEST_BINS) wc_import wc_merge wc_iefp wc_compare
