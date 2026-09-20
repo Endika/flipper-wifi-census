@@ -364,6 +364,30 @@ static bool ensure_browse_loaded(WcApp *app) {
                                                          &app->browse_meta, app->browse_census);
 }
 
+// Show app->result_text on a full screen (used for load errors and other one-off messages).
+static void show_message(WcApp *app, const char *text) {
+    snprintf(app->result_text, sizeof(app->result_text), "%s", text);
+    scene_manager_next_scene(app->scene_manager, WcSceneMsg);
+}
+
+void wc_scene_msg_on_enter(void *context) {
+    WcApp *app = context;
+    widget_reset(app->widget);
+    widget_add_text_scroll_element(app->widget, 0, 0, 128, 64, app->result_text);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewWidget);
+}
+
+bool wc_scene_msg_on_event(void *context, SceneManagerEvent event) {
+    UNUSED(context);
+    UNUSED(event);
+    return false;
+}
+
+void wc_scene_msg_on_exit(void *context) {
+    WcApp *app = context;
+    widget_reset(app->widget);
+}
+
 void wc_scene_file_actions_on_enter(void *context) {
     WcApp *app = context;
     submenu_reset(app->submenu);
@@ -384,11 +408,17 @@ bool wc_scene_file_actions_on_event(void *context, SceneManagerEvent event) {
         case ActionDevices:
             if (ensure_browse_loaded(app)) {
                 scene_manager_next_scene(app->scene_manager, WcSceneDevices);
+            } else {
+                show_message(app, "Can't open this capture.\nIt may be too large (over\n512 "
+                                  "devices) or corrupt.\nSplit/merge it on a PC\nwith wc_merge.");
             }
             return true;
         case ActionNetworks:
             if (ensure_browse_loaded(app)) {
                 scene_manager_next_scene(app->scene_manager, WcSceneNetworks);
+            } else {
+                show_message(app, "Can't open this capture.\nIt may be too large (over\n512 "
+                                  "devices) or corrupt.\nSplit/merge it on a PC\nwith wc_merge.");
             }
             return true;
         case ActionRename:

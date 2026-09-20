@@ -11,7 +11,6 @@ void wc_census_init(WcCensus *c) {
     c->max = WC_CENSUS_MAX_DEVICES;
 }
 
-// cppcheck-suppress unusedFunction // used by the off-device tools (not in the FAP link set)
 void wc_census_set_max(WcCensus *c, uint16_t max) {
     c->max = max;
 }
