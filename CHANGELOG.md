@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.19](https://github.com/Endika/flipper-wifi-census/compare/v0.1.18...v0.1.19) (2026-09-20)
+
+
+### Bug Fixes
+
+* read captures with more devices than the live cap, with a clear error otherwise ([a4a706b](https://github.com/Endika/flipper-wifi-census/commit/a4a706b370dc9ec1179e93256ff305b8cce87a9d))
+
 ## [0.1.18](https://github.com/Endika/flipper-wifi-census/compare/v0.1.17...v0.1.18) (2026-09-20)
 
 
