@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.21](https://github.com/Endika/flipper-wifi-census/compare/v0.1.20...v0.1.21) (2026-09-20)
+
+
+### Features
+
+* pick the import pcap from anywhere on the SD via the file browser ([6121004](https://github.com/Endika/flipper-wifi-census/commit/61210045ceff405a965be641fa39a06d994891aa))
+
 ## [0.1.20](https://github.com/Endika/flipper-wifi-census/compare/v0.1.19...v0.1.20) (2026-09-20)
 
 
