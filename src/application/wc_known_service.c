@@ -10,14 +10,24 @@
 
 bool wc_known_service_load(const WcStorePort *store, WcKnownDb *db) {
     wc_known_init(db);
+    // Size first. read_file reports 0 for a missing file AND for a failed read, so reading
+    // alone files a registry that would not load under "never saved" - and the next mark then
+    // writes one rule over all of them.
+    size_t size = store->file_size(store->self, WC_KNOWN_FILE);
+    if (size == 0) {
+        return true; // never saved yet
+    }
     // Heap, not stack: WC_KNOWN_MAX_BYTES (~4 KB) would blow the FAP's 4 KB stack.
     uint8_t *buf = malloc(WC_KNOWN_MAX_BYTES);
     if (!buf) {
         return false;
     }
     size_t n = store->read_file(store->self, WC_KNOWN_FILE, buf, WC_KNOWN_MAX_BYTES);
-    bool ok = (n == 0) ? true : wc_known_read(db, buf, n);
+    bool ok = (n == size) && wc_known_read(db, buf, n);
     free(buf);
+    if (!ok) {
+        wc_known_init(db);
+    }
     return ok;
 }
 

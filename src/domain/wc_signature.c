@@ -44,7 +44,7 @@ void wc_signature_from_obs(WcSignature *sig, const WcObservation *obs, uint32_t 
 void wc_signature_merge(WcSignature *sig, const WcObservation *obs, uint32_t now) {
     sig->obs_count++;
     sig->last_seen = now;
-    if (obs->rssi > sig->rssi_max) {
+    if (obs->rssi != 0 && (sig->rssi_max == 0 || obs->rssi > sig->rssi_max)) {
         sig->rssi_max = obs->rssi;
     }
     // A later beacon or vendor-bearing frame can sharpen an initially unknown type.
@@ -62,13 +62,16 @@ void wc_signature_merge(WcSignature *sig, const WcObservation *obs, uint32_t now
 
 void wc_signature_absorb(WcSignature *dst, const WcSignature *src) {
     dst->obs_count += src->obs_count;
-    if (src->first_seen < dst->first_seen) {
+    // Zero means "not measured", not "epoch zero" or "0 dBm": a capture imported from a pcap
+    // carries neither a clock nor a signal level, and plain min/max would let those unknowns
+    // beat every real reading they are merged with.
+    if (src->first_seen != 0 && (dst->first_seen == 0 || src->first_seen < dst->first_seen)) {
         dst->first_seen = src->first_seen;
     }
     if (src->last_seen > dst->last_seen) {
         dst->last_seen = src->last_seen;
     }
-    if (src->rssi_max > dst->rssi_max) {
+    if (src->rssi_max != 0 && (dst->rssi_max == 0 || src->rssi_max > dst->rssi_max)) {
         dst->rssi_max = src->rssi_max;
     }
     for (uint8_t i = 0; i < src->ssid_count; i++) {

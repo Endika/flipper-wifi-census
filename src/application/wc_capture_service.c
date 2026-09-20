@@ -83,16 +83,15 @@ bool wc_capture_service_stream(const WcStorePort *store, const char *filename, W
     for (uint16_t i = 0; i < count; i++) {
         WcSignature d;
         if (store->read_range(store->self, filename, hdr + (size_t)i * rec, buf, rec) != rec ||
-            !wc_capture_get_record(buf, rec, version, &d)) {
+            !wc_capture_get_record(buf, rec, version, &d) || !on_device(ctx, &d)) {
             return false;
         }
-        on_device(ctx, &d);
     }
     return true;
 }
 
-static void load_one(void *ctx, const WcSignature *d) {
-    wc_census_add(ctx, d);
+static bool load_one(void *ctx, const WcSignature *d) {
+    return wc_census_add(ctx, d) != NULL;
 }
 
 // Streamed, not buffered: holding a capture whole alongside the census it fills is two large

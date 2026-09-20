@@ -53,6 +53,7 @@ bool wc_scene_mark_label_on_event(void *context, SceneManagerEvent event) {
         // The outcome decides what the user is told. Dropping it made a full registry, an
         // undurable device and a failed write all look like success.
         bool ok = false;
+        bool undurable = false; // the device itself yields no rule, as opposed to a failed write
         switch (app->mark_mode) {
             case WcMarkSsid:
                 ok = wc_known_service_mark_ssid(&app->store, app->selected_ssid, app->text_buf);
@@ -64,7 +65,9 @@ bool wc_scene_mark_label_on_event(void *context, SceneManagerEvent event) {
             default:
                 if (app->browse_census && app->selected_device < app->browse_census->count) {
                     const WcSignature *sig = &app->browse_census->devices[app->selected_device];
-                    ok = wc_known_service_mark(&app->store, sig, app->text_buf);
+                    WcKnown probe;
+                    undurable = !wc_known_rule_from_signature(&probe, sig, app->text_buf);
+                    ok = !undurable && wc_known_service_mark(&app->store, sig, app->text_buf);
                 }
                 break;
         }
@@ -75,10 +78,16 @@ bool wc_scene_mark_label_on_event(void *context, SceneManagerEvent event) {
                          "Not saved.\n\nThe known registry is\nfull (%u rules).\nDelete one "
                          "first.",
                          (unsigned)WC_KNOWN_MAX);
-            } else {
+            } else if (undurable) {
                 snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
                          "Not saved.\n\nThis device gives no\ndurable rule: a random\nMAC that "
                          "names no\nnetwork cannot be\nrecognised again.");
+            } else {
+                // Everything the rule needs was there, so the card refused the write. Saying
+                // "no durable rule" here blamed the device for an SD problem.
+                snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
+                         "Not saved.\n\nThe SD refused the\nwrite - card absent,\nfull, or "
+                         "write\nprotected.");
             }
             scene_manager_next_scene(app->scene_manager, WcSceneMsg);
             return true;

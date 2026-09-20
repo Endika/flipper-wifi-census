@@ -10,9 +10,15 @@ bool wc_compare_service_run(const WcStorePort *store, const char *name_a, const 
     WcCensus *a = malloc(sizeof(WcCensus));
     WcCensus *b = malloc(sizeof(WcCensus));
     bool ok = false;
-    if (a && b) {
+    // Initialized under the same guard that frees them: one malloc succeeding while the other
+    // fails is the realistic shape here, and free() would then run on uninitialized bytes.
+    if (a) {
         wc_census_init(a);
+    }
+    if (b) {
         wc_census_init(b);
+    }
+    if (a && b) {
         WcCaptureMeta ma, mb;
         if (wc_capture_service_load(store, name_a, &ma, a) &&
             wc_capture_service_load(store, name_b, &mb, b)) {

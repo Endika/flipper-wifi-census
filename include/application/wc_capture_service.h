@@ -14,8 +14,9 @@ bool wc_capture_service_save(const WcStorePort *store, const char *basename,
 bool wc_capture_service_load(const WcStorePort *store, const char *filename, WcCaptureMeta *meta,
                              WcCensus *c);
 
-// Called once per stored device while streaming.
-typedef void (*WcCaptureDeviceFn)(void *ctx, const WcSignature *d);
+// Called once per stored device while streaming. Returning false aborts the walk: a capture is
+// taken whole or refused, never delivered short.
+typedef bool (*WcCaptureDeviceFn)(void *ctx, const WcSignature *d);
 
 // Walk a stored capture record by record, without ever holding the file. `meta` and the device
 // count come from its header; `max_devices` refuses a capture bigger than the caller can take,

@@ -33,7 +33,7 @@ static void on_frame(void *ctx, const uint8_t *frame, size_t len) {
 }
 
 bool wc_import_service_run(const WcStorePort *store, WcClockPort clock, const char *pcap_path,
-                           const char *out_basename) {
+                           const char *out_basename, uint16_t *out_dropped) {
     // Streamed, never held whole: reading the file into one allocation its own size rebooted
     // the Flipper on a 37 KB capture.
     if (store->file_size_path(store->self, pcap_path) == 0) {
@@ -53,6 +53,9 @@ bool wc_import_service_run(const WcStorePort *store, WcClockPort clock, const ch
         strncpy(meta.label, out_basename, WC_LABEL_MAX);
         meta.epoch = ic.now;
         ok = wc_capture_service_save(store, out_basename, &meta, census);
+        if (ok && out_dropped) {
+            *out_dropped = census->dropped;
+        }
     }
     wc_census_free(census);
     free(census);

@@ -57,7 +57,17 @@ void wc_scene_import_name_on_enter(void *context) {
 bool wc_scene_import_name_on_event(void *context, SceneManagerEvent event) {
     WcApp *app = context;
     if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventTextDone) {
-        if (wc_import_service_run(&app->store, app->clock, app->import_path, app->text_buf)) {
+        uint16_t dropped = 0;
+        if (wc_import_service_run(&app->store, app->clock, app->import_path, app->text_buf,
+                                  &dropped)) {
+            if (dropped > 0) {
+                snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
+                         "Imported, but %u\ndevices did NOT fit.\n\nThis build holds %u.\n"
+                         "Import it on a PC to\nkeep them all.",
+                         dropped, (unsigned)WC_CENSUS_MAX_DEVICES);
+                scene_manager_next_scene(app->scene_manager, WcSceneMsg);
+                return true;
+            }
             scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
         } else {
             wc_show_message(app, "Import failed.\n\nThe file is not a\nraw-802.11 (linktype "

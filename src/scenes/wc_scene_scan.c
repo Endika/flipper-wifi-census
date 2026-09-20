@@ -93,9 +93,13 @@ static void scan_save_chunk(WcApp *app) {
 
 void wc_scene_scan_on_enter(void *context) {
     WcApp *app = context;
-    scan_reset_census(app);
-    app->scan_started = wc_clock_now(&app->clock);
-    if (app->autosave) {
+    // Back from the name screen re-enters this scene. Resetting here would throw away the very
+    // capture the user was about to name, so a scan already in hand is resumed, not restarted.
+    if (app->scan.census.count == 0) {
+        scan_reset_census(app);
+        app->scan_started = wc_clock_now(&app->clock);
+    }
+    if (app->autosave && app->autosave_idx == 0) {
         wc_default_name(app->scan_started, "auto", app->autosave_base, sizeof(app->autosave_base));
         app->autosave_idx = 1;
         app->autosave_failed = 0;
@@ -105,6 +109,7 @@ void wc_scene_scan_on_enter(void *context) {
         // Nothing was captured and nothing is running: release the census we just reserved and
         // explain the problem instead of showing an empty scan that never counts anything.
         wc_census_free(&app->scan.census);
+        app->autosave_idx = 0; // the next scan is a new series, not a continuation
         scan_show_link_error(app);
         return;
     }
@@ -152,6 +157,7 @@ bool wc_scene_scan_on_event(void *context, SceneManagerEvent event) {
                 scan_save_chunk(app);
             }
             wc_census_free(&app->scan.census);
+            app->autosave_idx = 0;
             scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
         } else {
             // Stop and go to the save screen instead of dropping the scan.
@@ -197,8 +203,17 @@ bool wc_scene_save_on_event(void *context, SceneManagerEvent event) {
         meta.epoch = app->scan_started;
         meta.duration_s = wc_clock_now(&app->clock) - app->scan_started;
         meta.channels_mask = 0x3FFF; // channels 1-14 hopped
-        wc_capture_service_save(&app->store, app->text_buf, &meta, &app->scan.census);
+        if (!wc_capture_service_save(&app->store, app->text_buf, &meta, &app->scan.census)) {
+            // Keep the census: it is the whole scan, and the name screen is still behind us.
+            snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
+                     "NOT saved.\n\nThe SD refused the\nwrite - card full,\nabsent, or the name\n"
+                     "is already taken.\n\nThe scan is still\nhere: press Back and\ntry another "
+                     "name.");
+            scene_manager_next_scene(app->scene_manager, WcSceneMsg);
+            return true;
+        }
         wc_census_free(&app->scan.census); // done with it; free until the next scan
+        app->autosave_idx = 0;
         scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
         return true;
     }
