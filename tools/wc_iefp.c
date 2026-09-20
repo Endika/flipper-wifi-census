@@ -6,17 +6,9 @@
 // Two stable MACs sharing a fingerprint are provably two devices, which is what makes the
 // false-positive rate measurable rather than guessed.
 
-#include "include/domain/wc_census.h"
-#include "include/domain/wc_pcap_reader.h"
-#include "include/domain/wc_probe_frame.h"
+#include "tools/wc_load.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-
-// Well beyond any real capture; the analysis runs off-device, where the Flipper ceiling does
-// not apply.
-#define WC_IEFP_MAX_DEVICES 60000
 
 static void on_frame(void *ctx, const uint8_t *frame, size_t len) {
     WcObservation o;
@@ -91,7 +83,7 @@ static WcCensus *census_alloc(void) {
     WcCensus *c = malloc(sizeof(WcCensus));
     if (c) {
         wc_census_init(c);
-        wc_census_set_max(c, WC_IEFP_MAX_DEVICES);
+        wc_census_set_max(c, WC_TOOL_MAX_DEVICES);
     }
     return c;
 }
@@ -122,6 +114,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    wc_tool_report_dropped(argv[1], c);
     printf("=== %s: %u devices ===\n", argv[1], c->count);
 
     // 1. Does the fingerprint identify a device?

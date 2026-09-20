@@ -38,13 +38,8 @@ int main(int argc, char **argv) {
         wc_census_free(&part);
     }
 
+    wc_tool_report_dropped("merge", acc);
     WcCensusStats s = wc_census_stats(acc);
-    if (acc->dropped > 0) {
-        fprintf(stderr,
-                "! %u devices were DROPPED at the ceiling - this should never happen"
-                " off-device; report it\n",
-                acc->dropped);
-    }
     fprintf(stderr, "= merged: %u devices (stable %u, random %u), networks sought: %u\n", s.total,
             s.unique_stable, s.random_count, s.networks);
 
