@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.18](https://github.com/Endika/flipper-wifi-census/compare/v0.1.17...v0.1.18) (2026-09-20)
+
+
+### Features
+
+* device detail, known-network tagging and rename/delete of known entries ([49f16db](https://github.com/Endika/flipper-wifi-census/commit/49f16db9afcff3beb522a9190712dc45ace91fe8))
+
+
+### Performance Improvements
+
+* lower the per-scan device cap to 100 for RAM headroom ([a11ba47](https://github.com/Endika/flipper-wifi-census/commit/a11ba4777965757fb35880c6bbb1d579f797992a))
+
 ## [0.1.17](https://github.com/Endika/flipper-wifi-census/compare/v0.1.16...v0.1.17) (2026-09-20)
 
 
