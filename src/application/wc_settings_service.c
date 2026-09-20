@@ -15,12 +15,16 @@ static void settings_defaults(WcSettings *s) {
 
 bool wc_settings_service_load(const WcStorePort *store, WcSettings *s) {
     settings_defaults(s);
-    uint8_t buf[WC_SETTINGS_BYTES];
-    size_t n = store->read_file(store->self, WC_SETTINGS_FILE, buf, sizeof(buf));
-    if (n == 0) {
+    // Size first: read_file reports 0 both for "no file" and for "file too big for the buffer",
+    // so reading alone would file a 20-byte settings.db under "never saved" and overwrite it.
+    size_t size = store->file_size(store->self, WC_SETTINGS_FILE);
+    if (size == 0) {
         return true; // never saved yet
     }
-    if (n != WC_SETTINGS_BYTES || memcmp(buf, k_magic, sizeof(k_magic)) != 0) {
+    uint8_t buf[WC_SETTINGS_BYTES];
+    size_t n = store->read_file(store->self, WC_SETTINGS_FILE, buf, sizeof(buf));
+    if (size != WC_SETTINGS_BYTES || n != WC_SETTINGS_BYTES ||
+        memcmp(buf, k_magic, sizeof(k_magic)) != 0) {
         return false;
     }
     s->baud = (uint32_t)buf[4] | ((uint32_t)buf[5] << 8) | ((uint32_t)buf[6] << 16) |

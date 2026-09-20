@@ -201,17 +201,17 @@ format-check:
 
 # unusedFunction suppression: main.c's entry point (wc_app) is only called by the firmware
 # loader, invisible to cppcheck from this host source set.
-# internalAstError suppression: with_view_model() is a firmware macro cppcheck cannot expand
-# without the SDK headers, so it gives up on the function - every other check still runs.
+# tools/cppcheck_shims.h expands with_view_model() for the analyser: without it cppcheck hits
+# an AST error and skips the whole file, reporting nothing while looking green.
 linter:
 	cppcheck --enable=all --inline-suppr --error-exitcode=1 -I. \
+		--include=tools/cppcheck_shims.h \
 		--suppress=missingIncludeSystem \
 		--suppress=unmatchedSuppression \
 		--suppress=unusedFunction:main.c \
 		--suppress=checkersReport \
 		--suppress=normalCheckLevelMaxBranches \
 		--suppress=nullPointerOutOfMemory \
-		--suppress=internalAstError:src/views/wc_scroll_list.c \
 		src/domain/wc_version_info.c \
 		src/domain/wc_observation.c \
 		src/domain/wc_signature.c \

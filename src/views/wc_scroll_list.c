@@ -20,8 +20,9 @@ typedef struct {
     size_t position;
     size_t window_position;
     size_t scroll_counter;
+    bool selected_overflows; // set while drawing: whether the selected label needs to move
     FuriString *header;
-    FuriString *scratch; // reused per draw so a frame allocates nothing
+    FuriString *scratch; // the firmware element takes a FuriString, the labels are char[]
 } WcScrollListModel;
 
 struct WcScrollList {
@@ -70,7 +71,12 @@ static void wc_scroll_list_draw_callback(Canvas *canvas, void *_model) {
         }
 
         furi_string_set_str(model->scratch, model->items[position].label);
-        elements_scrollable_text_line(canvas, 6, item_y + item_height - 4, item_width - 11,
+        const size_t text_width = item_width - 11;
+        if (selected) {
+            model->selected_overflows =
+                canvas_string_width(canvas, furi_string_get_cstr(model->scratch)) > text_width;
+        }
+        elements_scrollable_text_line(canvas, 6, item_y + item_height - 4, text_width,
                                       model->scratch, scroll, !selected);
     }
 
@@ -139,12 +145,13 @@ static void wc_scroll_list_process_ok(WcScrollList *list) {
     }
 }
 
+// cppcheck-suppress constParameterCallback // the firmware's ViewInputCallback is not const
 static bool wc_scroll_list_input_callback(InputEvent *event, void *context) {
     WcScrollList *list = context;
     furi_assert(list);
 
     size_t count = 0;
-    with_view_model(list->view, WcScrollListModel * model, { count = model->count; }, false);
+    with_view_model(list->view, const WcScrollListModel *model, { count = model->count; }, false);
     if (count == 0) {
         return false;
     }
@@ -204,6 +211,7 @@ WcScrollList *wc_scroll_list_alloc(void) {
             model->position = 0;
             model->window_position = 0;
             model->scroll_counter = 0;
+            model->selected_overflows = false;
             model->header = furi_string_alloc();
             model->scratch = furi_string_alloc();
         },

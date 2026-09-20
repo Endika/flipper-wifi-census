@@ -482,6 +482,15 @@ static void test_settings_service_defaults_roundtrip_and_corruption(void) {
     assert(back.baud == WC_SETTINGS_BAUD_DEFAULT);
     assert(!back.autosave);
 
+    // A file LONGER than the record is corrupt as well. read_file reports 0 for "too big for
+    // the buffer" exactly as it does for "missing", so size has to be checked separately or a
+    // settings.db with a tail reads as "never saved" and gets silently overwritten.
+    const uint8_t long_rec[12] = {'W', 'C', 'S', '1', 0, 0, 0, 0, 1, 'j', 'u', 'n'};
+    assert(store.write_file(store.self, WC_SETTINGS_FILE, long_rec, sizeof(long_rec)));
+    assert(!wc_settings_service_load(&store, &back));
+    assert(back.baud == WC_SETTINGS_BAUD_DEFAULT);
+    assert(!back.autosave);
+
     // A truncated file is corrupt too, not a half-read.
     const uint8_t short_rec[5] = {'W', 'C', 'S', '1', 0};
     assert(store.write_file(store.self, WC_SETTINGS_FILE, short_rec, sizeof(short_rec)));
