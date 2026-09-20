@@ -89,6 +89,42 @@ static size_t store_file_size(void *self, const char *name) {
     return size;
 }
 
+// Read a file by absolute path (used for a pcap the user picked via the browser). The path is
+// used verbatim: no app-dir prefix, no name check — the browser only yields real, chosen paths.
+static size_t store_read_path(void *self, const char *path, uint8_t *buf, size_t cap) {
+    (void)self;
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    File *file = storage_file_alloc(storage);
+    size_t read = 0;
+    if (storage_file_open(file, path, FSAM_READ, FSOM_OPEN_EXISTING)) {
+        uint64_t size = storage_file_size(file);
+        if (size <= cap) {
+            read = storage_file_read(file, buf, (size_t)size);
+            if (read != (size_t)size) {
+                read = 0; // short read -> treat as failure
+            }
+        }
+    }
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+    return read;
+}
+
+static size_t store_file_size_path(void *self, const char *path) {
+    (void)self;
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    File *file = storage_file_alloc(storage);
+    size_t size = 0;
+    if (storage_file_open(file, path, FSAM_READ, FSOM_OPEN_EXISTING)) {
+        size = (size_t)storage_file_size(file);
+    }
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+    return size;
+}
+
 static bool store_rename(void *self, const char *from, const char *to) {
     (void)self;
     if (!name_is_safe(from) || !name_is_safe(to)) {
@@ -181,6 +217,8 @@ WcStorePort wc_store_furi_port(void) {
         .write_file = store_write,
         .read_file = store_read,
         .file_size = store_file_size,
+        .read_file_path = store_read_path,
+        .file_size_path = store_file_size_path,
         .rename_file = store_rename,
         .delete_file = store_delete,
         .list = store_list,

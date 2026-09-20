@@ -68,6 +68,7 @@ typedef struct {
     // Browsing / comparison state.
     char text_buf[WC_TEXT_BUF_SIZE]; // capture/label entry
     char selected_file[WC_TEXT_BUF_SIZE];
+    char import_path[128]; // absolute path of a pcap picked in the file browser
     char compare_a[WC_TEXT_BUF_SIZE];
     char merge_a[WC_TEXT_BUF_SIZE];
     char merge_b[WC_TEXT_BUF_SIZE];

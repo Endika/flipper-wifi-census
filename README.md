@@ -105,9 +105,9 @@ airodump) can be turned into a census, on the Flipper or on a laptop:
   ```
   It prints the same CSV the app writes (mac, random, type, vendor, networks sought, …) and a
   one-line summary on stderr. Handy when you have the pcap but not the Flipper.
-- **On the Flipper** — drop the `.pcap` into `/ext/apps_data/flipper_wifi_census/` and use
-  **Import pcap** in the menu (on-device import reads files up to 40 KB; use the PC tool for
-  larger ones).
+- **On the Flipper** — use **Import pcap** in the menu: a file browser opens in the app's
+  folder but lets you navigate the whole SD (e.g. Marauder's own capture folder) to pick the
+  `.pcap`. On-device import reads files up to 64 KB; use the PC tool for larger ones.
 
 ## Serial debug
 

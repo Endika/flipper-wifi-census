@@ -22,6 +22,10 @@ typedef struct {
     size_t (*read_file)(void *self, const char *name, uint8_t *buf, size_t cap);
     // Size of a stored file in bytes, or 0 if missing (lets a caller size a read buffer).
     size_t (*file_size)(void *self, const char *name);
+    // Read/size a file by ABSOLUTE path (e.g. a pcap the user picked anywhere on the SD via the
+    // file browser). No app-dir prefix is applied — the path is used verbatim.
+    size_t (*read_file_path)(void *self, const char *path, uint8_t *buf, size_t cap);
+    size_t (*file_size_path)(void *self, const char *path);
     bool (*rename_file)(void *self, const char *from, const char *to);
     bool (*delete_file)(void *self, const char *name);
     uint16_t (*list)(void *self, WcStoreNameFn cb, void *ctx);

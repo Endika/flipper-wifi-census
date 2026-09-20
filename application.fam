@@ -9,7 +9,7 @@ App(
     fap_version="0.1.20",  # x-release-please-version
     fap_author="Endika",
     fap_description="Passive Wi-Fi device census over an ESP32 Marauder dev board: count and type nearby devices, save each scan, and compare captures across locations. Local-only.",
-    requires=["gui", "storage"],
+    requires=["gui", "storage", "dialogs"],
     sources=[
         "main.c",
         "src/domain/wc_version_info.c",

@@ -7,7 +7,9 @@
 #include "include/domain/wc_version_info.h"
 #include "include/scenes/wc_scene.h"
 
+#include <dialogs/dialogs.h>
 #include <furi.h>
+#include <storage/storage.h>
 
 // ---------------------------------------------------------------------------
 // Shared callbacks and helpers
@@ -945,23 +947,36 @@ void wc_scene_merge_result_on_exit(void *context) {
 
 void wc_scene_import_pick_on_enter(void *context) {
     WcApp *app = context;
-    populate_list(app, "Import pcap (in app folder)", ".pcap", "(no .pcap here)");
+    // Native SD file browser: opens in the app's folder but lets you navigate anywhere under
+    // /ext (e.g. Marauder's own capture folder) and pick a .pcap.
+    DialogsApp *dialogs = furi_record_open(RECORD_DIALOGS);
+    FuriString *path = furi_string_alloc_set(STORAGE_APP_DATA_PATH_PREFIX);
+    DialogsFileBrowserOptions opts;
+    dialog_file_browser_set_basic_options(&opts, ".pcap", NULL);
+    opts.base_path = STORAGE_EXT_PATH_PREFIX;
+    bool picked = dialog_file_browser_show(dialogs, path, path, &opts);
+    if (picked) {
+        strncpy(app->import_path, furi_string_get_cstr(path), sizeof(app->import_path) - 1);
+        app->import_path[sizeof(app->import_path) - 1] = '\0';
+    }
+    furi_string_free(path);
+    furi_record_close(RECORD_DIALOGS);
+
+    if (picked) {
+        scene_manager_next_scene(app->scene_manager, WcSceneImportName);
+    } else {
+        scene_manager_previous_scene(app->scene_manager); // cancelled
+    }
 }
 
 bool wc_scene_import_pick_on_event(void *context, SceneManagerEvent event) {
-    WcApp *app = context;
-    if (event.type == SceneManagerEventTypeCustom && event.event < app->list_count) {
-        strncpy(app->selected_file, app->list_names[event.event], WC_TEXT_BUF_SIZE - 1);
-        app->selected_file[WC_TEXT_BUF_SIZE - 1] = '\0';
-        scene_manager_next_scene(app->scene_manager, WcSceneImportName);
-        return true;
-    }
+    UNUSED(context);
+    UNUSED(event);
     return false;
 }
 
 void wc_scene_import_pick_on_exit(void *context) {
-    WcApp *app = context;
-    submenu_reset(app->submenu);
+    UNUSED(context);
 }
 
 void wc_scene_import_name_on_enter(void *context) {
@@ -978,8 +993,12 @@ void wc_scene_import_name_on_enter(void *context) {
 bool wc_scene_import_name_on_event(void *context, SceneManagerEvent event) {
     WcApp *app = context;
     if (event.type == SceneManagerEventTypeCustom && event.event == WcCustomEventTextDone) {
-        wc_import_service_run(&app->store, app->clock, app->selected_file, app->text_buf);
-        scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
+        if (wc_import_service_run(&app->store, app->clock, app->import_path, app->text_buf)) {
+            scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
+        } else {
+            show_message(app, "Import failed.\nThe pcap may be too large\n(over 64 KB), not a "
+                              "raw-802.11\ncapture, or unreadable.\nUse the PC tool for big ones.");
+        }
         return true;
     }
     return false;
