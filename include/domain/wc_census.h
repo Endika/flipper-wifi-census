@@ -27,6 +27,9 @@ typedef struct {
     uint8_t pct_random;     // random_count as a percentage of total
     uint16_t by_type[WcDeviceTypeCount]; // indexed by WcDeviceType
     uint16_t networks;                   // distinct directed SSIDs devices are probing for
+    // Devices the ceiling refused. It rides inside the stats so that no screen can show the
+    // totals without having the loss right there: reporting it must not depend on remembering.
+    uint16_t dropped;
 } WcCensusStats;
 
 // One "network a device is looking for": a directed probe SSID and how many devices sought it.

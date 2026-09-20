@@ -47,3 +47,9 @@ void wc_scroll_list_add_generated(WcScrollList *list, uint16_t count, WcScrollLi
                                   WcScrollListCb callback, void *callback_context);
 // Selects the item carrying `index` (the value passed to add_item), scrolling it into view.
 void wc_scroll_list_set_selected_item(WcScrollList *list, uint32_t index);
+
+// Entries the caller could not even offer, because its own buffers filled first (captures past
+// WC_MAX_LIST, SSIDs past the tally). Added to what the list itself had to refuse; the total is
+// drawn on the header row. The count is what makes a short list honest, so the view draws it
+// itself rather than trusting every scene to remember.
+void wc_scroll_list_note_hidden(WcScrollList *list, uint16_t n);

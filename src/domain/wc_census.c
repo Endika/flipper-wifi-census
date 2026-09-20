@@ -155,6 +155,7 @@ WcCensusStats wc_census_stats(const WcCensus *c) {
     WcCensusStats s;
     memset(&s, 0, sizeof(s));
     s.total = c->count;
+    s.dropped = c->dropped;
     for (uint16_t i = 0; i < c->count; i++) {
         const WcSignature *d = &c->devices[i];
         if (d->mac_random) {

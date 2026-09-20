@@ -14,7 +14,7 @@
 
 #define WC_TOOL_MAX_DEVICES 60000 // off-device ceiling: effectively "all of them"
 
-static void wc_tool_on_frame(void *ctx, const uint8_t *frame, size_t len) {
+static inline void wc_tool_on_frame(void *ctx, const uint8_t *frame, size_t len) {
     WcObservation o;
     if (wc_parse_probe_frame(frame, len, &o)) {
         wc_census_observe(ctx, &o, 0);
@@ -22,7 +22,8 @@ static void wc_tool_on_frame(void *ctx, const uint8_t *frame, size_t len) {
 }
 
 // Loads `path` into `into` (already init'd). Returns false if the file is neither format.
-static bool wc_tool_load_file(const char *path, WcCensus *into) {
+// `inline` so a tool that only needs one of these two helpers still compiles clean.
+static inline bool wc_tool_load_file(const char *path, WcCensus *into) {
     FILE *f = fopen(path, "rb");
     if (!f) {
         return false;

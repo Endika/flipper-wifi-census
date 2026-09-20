@@ -221,6 +221,7 @@ static void test_capture_save_load_and_csv(void) {
     WcCaptureMeta m2;
     WcCensus *c2 = calloc(1, sizeof(WcCensus));
     assert(c2);
+    wc_census_init(c2); // the reader keeps the caller's ceiling, so it must be set
     assert(wc_capture_service_load(&store, "casa" WC_CAP_EXT, &m2, c2));
     assert(c2->count == 2);
     assert(strcmp(m2.label, "casa") == 0);
@@ -377,6 +378,7 @@ static void test_merge_service_end_to_end(void) {
     WcCaptureMeta mm;
     WcCensus *merged = calloc(1, sizeof(WcCensus));
     assert(merged);
+    wc_census_init(merged); // the reader keeps the caller's ceiling, so it must be set
     assert(wc_capture_service_load(&store, "acc" WC_CAP_EXT, &mm, merged));
     // laptop deduped across days, pi + new device distinct -> 3.
     assert(merged->count == 3);
@@ -440,6 +442,7 @@ static void test_import_service_from_pcap(void) {
     WcCaptureMeta m;
     WcCensus *c = calloc(1, sizeof(WcCensus));
     assert(c);
+    wc_census_init(c); // the reader keeps the caller's ceiling, so it must be set
     assert(wc_capture_service_load(&store, "imp" WC_CAP_EXT, &m, c));
     // both records are the same device -> deduped to 1, probing "Net".
     assert(c->count == 1);

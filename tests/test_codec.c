@@ -46,6 +46,7 @@ static void test_round_trip(void) {
 
     WcCaptureMeta meta2;
     WcCensus c2;
+    wc_census_init(&c2);
     assert(wc_capture_read(&meta2, &c2, buf, n));
     assert(strcmp(meta2.label, "bar_sabado") == 0);
     assert(meta2.epoch == meta.epoch);
@@ -89,7 +90,15 @@ static void test_rejects_capture_over_cap(void) {
 
     WcCaptureMeta m2;
     WcCensus c2;
+    wc_census_init(&c2);
     assert(!wc_capture_read(&m2, &c2, buf, need)); // rejected: over the device ceiling
+    // ...but the same file opens into a census whose ceiling was raised, which is exactly what
+    // the host tools do. The ceiling is the caller's, never this build's.
+    wc_census_set_max(&c2, 60000);
+    assert(wc_capture_read(&m2, &c2, buf, need));
+    assert(c2.count > WC_CENSUS_MAX_DEVICES);
+    assert(c2.dropped == 0); // read whole or refused, never silently clipped
+    wc_census_free(&c2);
     wc_census_free(&c);
     free(buf);
 }
@@ -122,6 +131,7 @@ static void test_reads_v1_capture(void) {
 
     WcCaptureMeta m;
     WcCensus c;
+    wc_census_init(&c);
     assert(wc_capture_read(&m, &c, buf, v1_len));
     assert(c.count == 1);
     assert(c.devices[0].type == WcDeviceLaptop);

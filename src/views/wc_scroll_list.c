@@ -20,6 +20,7 @@ typedef struct {
     size_t position;
     size_t window_position;
     size_t scroll_counter;
+    uint16_t hidden; // entries not shown, refused here or by the caller
     WcScrollListLabelFn label_fn;
     void *label_ctx;
     bool selected_overflows; // set while drawing: whether the selected label needs to move
@@ -32,8 +33,13 @@ struct WcScrollList {
     FuriTimer *scroll_timer;
 };
 
+// The header row also carries the hidden count, so it exists whenever either does.
+static bool has_header_row(const WcScrollListModel *model) {
+    return !furi_string_empty(model->header) || model->hidden > 0;
+}
+
 static size_t items_on_screen(const WcScrollListModel *model) {
-    return furi_string_empty(model->header) ? 4 : 3;
+    return has_header_row(model) ? 3 : 4;
 }
 
 static void wc_scroll_list_draw_callback(Canvas *canvas, void *_model) {
@@ -43,15 +49,22 @@ static void wc_scroll_list_draw_callback(Canvas *canvas, void *_model) {
 
     canvas_clear(canvas);
 
-    if (!furi_string_empty(model->header)) {
+    if (has_header_row(model)) {
         canvas_set_font(canvas, FontPrimary);
-        canvas_draw_str(canvas, 4, 11, furi_string_get_cstr(model->header));
+        if (model->hidden > 0) {
+            furi_string_printf(model->scratch, "%s +%u", furi_string_get_cstr(model->header),
+                               model->hidden);
+        } else {
+            furi_string_set(model->scratch, model->header);
+        }
+        elements_scrollable_text_line(canvas, 4, 11, canvas_width(canvas) - 8, model->scratch, 0,
+                                      true);
     }
 
     canvas_set_font(canvas, FontSecondary);
 
     const size_t on_screen = items_on_screen(model);
-    const uint8_t y_offset = furi_string_empty(model->header) ? 0 : item_height;
+    const uint8_t y_offset = has_header_row(model) ? item_height : 0;
 
     for (size_t position = 0; position < model->count; position++) {
         const size_t item_position = position - model->window_position;
@@ -223,6 +236,7 @@ WcScrollList *wc_scroll_list_alloc(void) {
             model->window_position = 0;
             model->scroll_counter = 0;
             model->selected_overflows = false;
+            model->hidden = 0;
             model->label_fn = NULL;
             model->label_ctx = NULL;
             model->header = furi_string_alloc();
@@ -261,6 +275,7 @@ void wc_scroll_list_reset(WcScrollList *list) {
             model->position = 0;
             model->window_position = 0;
             model->scroll_counter = 0;
+            model->hidden = 0;
             model->label_fn = NULL;
             model->label_ctx = NULL;
             furi_string_reset(model->header);
@@ -296,6 +311,8 @@ void wc_scroll_list_add_item(WcScrollList *list, const char *label, uint32_t ind
                 item->callback = callback;
                 item->callback_context = callback_context;
                 model->count++;
+            } else {
+                model->hidden++;
             }
         },
         true);
@@ -310,7 +327,11 @@ void wc_scroll_list_add_generated(WcScrollList *list, uint16_t count, WcScrollLi
         {
             model->label_fn = label_fn;
             model->label_ctx = callback_context;
-            for (uint16_t i = 0; i < count && model->count < WC_SCROLL_LIST_MAX; i++) {
+            for (uint16_t i = 0; i < count; i++) {
+                if (model->count >= WC_SCROLL_LIST_MAX) {
+                    model->hidden += (uint16_t)(count - i);
+                    break;
+                }
                 WcScrollListItem *item = &model->items[model->count];
                 item->label = NULL; // generated on demand, never stored
                 item->index = i;
@@ -320,6 +341,11 @@ void wc_scroll_list_add_generated(WcScrollList *list, uint16_t count, WcScrollLi
             }
         },
         true);
+}
+
+void wc_scroll_list_note_hidden(WcScrollList *list, uint16_t n) {
+    furi_check(list);
+    with_view_model(list->view, WcScrollListModel * model, { model->hidden += n; }, true);
 }
 
 void wc_scroll_list_set_selected_item(WcScrollList *list, uint32_t index) {

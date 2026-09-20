@@ -242,6 +242,26 @@ static void test_phone_bound(void) {
     wc_census_free(&c);
 }
 
+// Loss must travel with the numbers. A screen that shows totals gets the drop count in the
+// same struct, so reporting it cannot depend on someone remembering to ask.
+static void test_stats_carry_the_dropped_count(void) {
+    WcCensus c;
+    wc_census_init(&c);
+    wc_census_set_max(&c, 3);
+    for (uint16_t i = 0; i < 10; i++) {
+        WcSignature sig;
+        memset(&sig, 0, sizeof(sig));
+        sig.mac[0] = 0x00;
+        sig.mac[5] = (uint8_t)i;
+        wc_census_add(&c, &sig);
+    }
+    WcCensusStats s = wc_census_stats(&c);
+    assert(s.total == 3);
+    assert(s.dropped == 7);
+    assert(c.dropped == s.dropped);
+    wc_census_free(&c);
+}
+
 int main(void) {
     test_same_mac_is_one_device();
     test_merge_accumulates();
@@ -253,6 +273,7 @@ int main(void) {
     test_stats();
     test_table_full_drops();
     test_phone_bound();
+    test_stats_carry_the_dropped_count();
     printf("test_census: OK\n");
     return 0;
 }

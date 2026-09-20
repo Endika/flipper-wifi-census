@@ -4,21 +4,9 @@
 //
 //   wc_import capture.pcap > census.csv
 
-#include "include/domain/wc_capture_codec.h"
-#include "include/domain/wc_census.h"
-#include "include/domain/wc_pcap_reader.h"
-#include "include/domain/wc_probe_frame.h"
+#include "tools/wc_load.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-
-static void on_frame(void *ctx, const uint8_t *frame, size_t len) {
-    WcObservation o;
-    if (wc_parse_probe_frame(frame, len, &o)) {
-        wc_census_observe(ctx, &o, 0);
-    }
-}
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -53,7 +41,8 @@ int main(int argc, char **argv) {
         return 1;
     }
     wc_census_init(c);
-    if (!wc_pcap_read(buf, (size_t)size, on_frame, c)) {
+    wc_census_set_max(c, WC_TOOL_MAX_DEVICES); // off-device: no Flipper ceiling applies
+    if (!wc_pcap_read(buf, (size_t)size, wc_tool_on_frame, c)) {
         fprintf(stderr, "not a supported pcap (need classic libpcap, linktype 105 IEEE802.11)\n");
         free(buf);
         free(c);
@@ -61,6 +50,12 @@ int main(int argc, char **argv) {
     }
 
     WcCensusStats s = wc_census_stats(c);
+    if (c->dropped > 0) {
+        fprintf(stderr,
+                "! %u devices were DROPPED at the ceiling - this should never happen"
+                " off-device; report it\n",
+                c->dropped);
+    }
     fprintf(stderr, "devices: %u (stable %u, random %u), networks sought: %u\n", s.total,
             s.unique_stable, s.random_count, s.networks);
 

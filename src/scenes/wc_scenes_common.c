@@ -20,20 +20,27 @@ static void files_list_cb(void *context, const char *name) {
     WcApp *app = context;
     size_t n = strlen(name);
     const size_t el = strlen(WC_CAP_EXT);
-    if (n > el && strcmp(name + n - el, WC_CAP_EXT) == 0 && app->list_count < WC_MAX_LIST) {
-        strncpy(app->list_names[app->list_count], name, WC_TEXT_BUF_SIZE - 1);
-        app->list_names[app->list_count][WC_TEXT_BUF_SIZE - 1] = '\0';
-        wc_scroll_list_add_item(app->list_view, app->list_names[app->list_count], app->list_count,
-                                wc_list_cb, app);
-        app->list_count++;
+    if (n <= el || strcmp(name + n - el, WC_CAP_EXT) != 0) {
+        return;
     }
+    if (app->list_count >= WC_MAX_LIST) {
+        app->list_overflow++; // no room to even name it; the header will say how many
+        return;
+    }
+    strncpy(app->list_names[app->list_count], name, WC_TEXT_BUF_SIZE - 1);
+    app->list_names[app->list_count][WC_TEXT_BUF_SIZE - 1] = '\0';
+    wc_scroll_list_add_item(app->list_view, app->list_names[app->list_count], app->list_count,
+                            wc_list_cb, app);
+    app->list_count++;
 }
 
 void wc_populate_files(WcApp *app, const char *header) {
     wc_scroll_list_reset(app->list_view);
     wc_scroll_list_set_header(app->list_view, header);
     app->list_count = 0;
+    app->list_overflow = 0;
     app->store.list(app->store.self, files_list_cb, app);
+    wc_scroll_list_note_hidden(app->list_view, app->list_overflow);
     if (app->list_count == 0) {
         wc_scroll_list_add_item(app->list_view, "(no captures)", WC_MAX_LIST, wc_list_cb, app);
     }

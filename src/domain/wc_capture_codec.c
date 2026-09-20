@@ -118,6 +118,7 @@ uint16_t wc_capture_peek_count(const uint8_t *buf, size_t len) {
 }
 
 bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_t len) {
+    const uint16_t ceiling = c->max; // the caller's, not this build's
     if (len < WC_HEADER_SIZE) {
         return false;
     }
@@ -146,9 +147,11 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
     uint16_t count = get_u16(p);
     p += 2;
 
-    // A capture with more devices than the ceiling is rejected rather than loaded: the Flipper
-    // hasn't the RAM to browse it safely. The caller surfaces a clear "too large" message.
-    if (count > WC_CENSUS_MAX_DEVICES) {
+    // Rejected rather than partly loaded when it does not fit the census it is being read
+    // into: the Flipper hasn't the RAM to browse it, and a half-read capture is worse than a
+    // refused one. It is the census's OWN ceiling that decides, so a host tool that opened its
+    // census wide reads the same file the Flipper has to turn down.
+    if (count > ceiling) {
         return false;
     }
     // The declared count must account for the buffer exactly — no truncation, no trailer.
@@ -156,7 +159,8 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
         return false;
     }
 
-    wc_census_init(c);
+    wc_census_free(c); // drop whatever it held; free() re-inits it
+    wc_census_set_max(c, ceiling);
     wc_census_reserve(c, count); // one allocation for the whole file (no realloc growth)
     for (uint16_t i = 0; i < count; i++) {
         WcSignature d;
