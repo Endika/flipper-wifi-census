@@ -14,3 +14,7 @@ wc_compare
 *.csv
 .~lock.*#
 wc_clean
+
+# Python bytecode from running the table generator
+__pycache__/
+*.pyc

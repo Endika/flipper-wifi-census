@@ -135,6 +135,8 @@ static void extract_ssid(const char *buf, char *out) {
     out[0] = '\0';
     const char *p = value_after_label(buf, "SSID");
     if (!p)
+        p = value_after_label(buf, "ESSID"); // a real label; only BSSID must never match
+    if (!p)
         p = value_after_label(buf, "Requesting");
     if (!p) {
         const char *q = strchr(buf, '"');
@@ -198,6 +200,9 @@ bool wc_parse_summary_line(const char *line, size_t len, WcObservation *out) {
     // for a network called "BEACON" is a phone, and typing it as an access point would drop it
     // out of both the linking rule and every comparison.
     const char *ssid_at = value_after_label(buf, "SSID");
+    if (!ssid_at) {
+        ssid_at = value_after_label(buf, "ESSID");
+    }
     size_t head = ssid_at ? (size_t)(ssid_at - buf) : strlen(buf);
     char kind[WC_LINE_MAX];
     size_t kn = head < sizeof(kind) - 1 ? head : sizeof(kind) - 1;

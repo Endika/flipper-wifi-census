@@ -327,9 +327,11 @@ void wc_scene_networks_on_enter(void *context) {
     wc_scroll_list_reset(app->list_view);
     wc_scroll_list_set_header(app->list_view, "Networks (select to tag)");
     app->list_count = 0;
+    bool tallied = false;
     if (app->browse_census) {
         WcSsidTally *t = malloc(sizeof(WcSsidTally) * WC_MAX_NAMED);
         if (t) {
+            tallied = true;
             // A device probes up to two networks, so there can be more SSIDs than slots.
             uint16_t n = wc_census_ssid_tally(app->browse_census, t, WC_MAX_NAMED);
             app->list_overflow = (n > WC_MAX_NAMED) ? (uint16_t)(n - WC_MAX_NAMED) : 0;
@@ -347,7 +349,8 @@ void wc_scene_networks_on_enter(void *context) {
         wc_scroll_list_add_generated(app->list_view, app->list_count, network_label, wc_list_cb,
                                      app);
     } else {
-        wc_scroll_list_add_item(app->list_view, "(none sought)", WC_MAX_LIST, wc_list_cb, app);
+        wc_scroll_list_add_item(app->list_view, tallied ? "(none sought)" : "(out of memory)",
+                                WC_MAX_LIST, wc_list_cb, app);
     }
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }

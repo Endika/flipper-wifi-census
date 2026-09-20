@@ -22,9 +22,8 @@ typedef struct {
     size_t (*read_file)(void *self, const char *name, uint8_t *buf, size_t cap);
     // Size of a stored file in bytes, or 0 if missing (lets a caller size a read buffer).
     size_t (*file_size)(void *self, const char *name);
-    // Read/size a file by ABSOLUTE path (e.g. a pcap the user picked anywhere on the SD via the
-    // file browser). No app-dir prefix is applied — the path is used verbatim.
-    size_t (*read_file_path)(void *self, const char *path, uint8_t *buf, size_t cap);
+    // Size a file by ABSOLUTE path (a pcap the user picked anywhere on the SD via the file
+    // browser). No app-dir prefix is applied — the path is used verbatim.
     size_t (*file_size_path)(void *self, const char *path);
     // Read up to `cap` bytes from `offset`; 0 at end of file or on error. How a big file is
     // consumed without being held whole, which a FAP cannot count on doing.

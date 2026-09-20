@@ -59,7 +59,9 @@ static void format_compare(WcApp *app, const WcCompareResult *r) {
                     "A:%u B:%u  common:%u\nrandom(not crossable) A:%u B:%u\n", r->na, r->nb,
                     r->intersection, r->random_a, r->random_b);
     // Keep room for the "showing N of M" line, so the warning can never itself be cut off.
-    const size_t room = WC_RESULT_TEXT_SIZE - 48;
+    // 64, not 48: the tail below is 54 fixed characters plus the two counts, so the line
+    // written to stop anything being hidden was itself always cut off mid-word.
+    const size_t room = WC_RESULT_TEXT_SIZE - 64;
     uint16_t shown = 0;
     for (uint16_t i = 0; i < r->match_count && len < room; i++) {
         const WcMatch *m = &r->matches[i];
@@ -75,10 +77,11 @@ static void format_compare(WcApp *app, const WcCompareResult *r) {
         }
         // snprintf returns what it WOULD have written, so a truncated row must not be added
         // whole: len would run past the buffer and the tail write below would go out of bounds.
-        len += (n > 0) ? (size_t)n : 0;
-        if (len >= room) {
-            len = room - 1;
+        if (n <= 0 || len + (size_t)n >= room) {
+            len = (len < room) ? len : room - 1;
+            break; // the row did not fit, so it was not shown
         }
+        len += (size_t)n;
         shown++;
     }
     if (shown < r->intersection) {

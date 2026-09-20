@@ -28,3 +28,7 @@ bool wc_capture_service_stream(const WcStorePort *store, const char *filename, W
 // more than this build's ceiling is refused by the loader, and without this the refusal is
 // indistinguishable from a corrupt file.
 uint16_t wc_capture_service_device_count(const WcStorePort *store, const char *filename);
+
+// Whether "<basename>.wcen" already exists. Saving truncates, and the default name has only
+// minute resolution, so two scans in the same minute would overwrite each other.
+bool wc_capture_service_exists(const WcStorePort *store, const char *basename);

@@ -71,6 +71,10 @@ int main(int argc, char **argv) {
 
     size_t csv_len = wc_capture_to_csv(NULL, 0, &(WcCaptureMeta){0}, c);
     char *csv = malloc(csv_len + 1);
+    if (!csv) {
+        fprintf(stderr, "! out of memory rendering the CSV\n");
+        return 1;
+    }
     WcCaptureMeta meta;
     memset(&meta, 0, sizeof(meta));
     snprintf(meta.label, sizeof(meta.label), "%s", argv[1]);
