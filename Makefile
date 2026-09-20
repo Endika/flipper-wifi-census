@@ -237,7 +237,13 @@ linter:
 		src/views/wc_scroll_list.c \
 		src/app/wc_app.c \
 		src/scenes/wc_scene.c \
-		src/scenes/wc_scenes.c \
+		src/scenes/wc_scenes_common.c \
+		src/scenes/wc_scene_home.c \
+		src/scenes/wc_scene_scan.c \
+		src/scenes/wc_scene_browse.c \
+		src/scenes/wc_scene_known.c \
+		src/scenes/wc_scene_crossing.c \
+		src/scenes/wc_scene_import.c \
 		main.c \
 		tests/test_smoke.c \
 		tests/test_signature.c \
