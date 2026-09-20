@@ -14,11 +14,13 @@ void wc_text_input_cb(void *context) {
     view_dispatcher_send_custom_event(app->view_dispatcher, WcCustomEventTextDone);
 }
 
+// Called once per stored file. Only captures are listed; the .csv sidecars are not something
+// the app can open.
 static void files_list_cb(void *context, const char *name) {
     WcApp *app = context;
     size_t n = strlen(name);
-    size_t el = strlen(app->list_ext);
-    if (n > el && strcmp(name + n - el, app->list_ext) == 0 && app->list_count < WC_MAX_LIST) {
+    const size_t el = strlen(WC_CAP_EXT);
+    if (n > el && strcmp(name + n - el, WC_CAP_EXT) == 0 && app->list_count < WC_MAX_LIST) {
         strncpy(app->list_names[app->list_count], name, WC_TEXT_BUF_SIZE - 1);
         app->list_names[app->list_count][WC_TEXT_BUF_SIZE - 1] = '\0';
         wc_scroll_list_add_item(app->list_view, app->list_names[app->list_count], app->list_count,
@@ -27,20 +29,15 @@ static void files_list_cb(void *context, const char *name) {
     }
 }
 
-static void populate_list(WcApp *app, const char *header, const char *ext, const char *empty_msg) {
+void wc_populate_files(WcApp *app, const char *header) {
     wc_scroll_list_reset(app->list_view);
     wc_scroll_list_set_header(app->list_view, header);
-    app->list_ext = ext;
     app->list_count = 0;
     app->store.list(app->store.self, files_list_cb, app);
     if (app->list_count == 0) {
-        wc_scroll_list_add_item(app->list_view, empty_msg, WC_MAX_LIST, wc_list_cb, app);
+        wc_scroll_list_add_item(app->list_view, "(no captures)", WC_MAX_LIST, wc_list_cb, app);
     }
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
-}
-
-void wc_populate_files(WcApp *app, const char *header) {
-    populate_list(app, header, WC_CAP_EXT, "(no captures)");
 }
 
 // ---------------------------------------------------------------------------

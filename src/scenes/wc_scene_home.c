@@ -28,12 +28,13 @@ typedef enum {
 // Auto-save lives in Settings too, but it is the one option you decide right before scanning,
 // so the menu both shows it and toggles it.
 static void start_populate(WcApp *app) {
-    char autosave_label[24];
-    snprintf(autosave_label, sizeof(autosave_label), "Auto-save: %s", app->autosave ? "On" : "Off");
+    snprintf(app->menu_autosave_label, sizeof(app->menu_autosave_label), "Auto-save: %s",
+             app->autosave ? "On" : "Off");
     wc_scroll_list_reset(app->list_view);
     wc_scroll_list_set_header(app->list_view, "WiFi Census");
     wc_scroll_list_add_item(app->list_view, "Scan", StartScan, wc_list_cb, app);
-    wc_scroll_list_add_item(app->list_view, autosave_label, StartAutoSave, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, app->menu_autosave_label, StartAutoSave, wc_list_cb,
+                            app);
     wc_scroll_list_add_item(app->list_view, "Files", StartFiles, wc_list_cb, app);
     wc_scroll_list_add_item(app->list_view, "Compare", StartCompare, wc_list_cb, app);
     wc_scroll_list_add_item(app->list_view, "Merge", StartMerge, wc_list_cb, app);

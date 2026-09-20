@@ -88,10 +88,13 @@ typedef struct {
     char selected_ssid[WC_SSID_MAX_LEN + 1]; // network picked in the Networks list
     uint16_t selected_known;                 // index picked in the Known list
 
-    // Scratch for building the selection lists (index -> name).
+    // Scratch for the selection lists. list_names holds what has no other copy in memory: the
+    // capture file names from the SD listing, and the SSIDs of the networks list. Device and
+    // known rows are rendered straight from the census and the registry instead.
     char list_names[WC_MAX_LIST][WC_TEXT_BUF_SIZE];
+    uint16_t list_counts[WC_MAX_LIST]; // devices per SSID, for the networks rows
     uint16_t list_count;
-    const char *list_ext; // extension filter for the current file listing
+    char menu_autosave_label[24]; // the list borrows it, so it cannot live on the stack
 
     char debug_buf[512]; // rolling raw serial lines for the Serial debug view
 } WcApp;
