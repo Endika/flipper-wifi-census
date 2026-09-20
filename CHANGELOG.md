@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.25](https://github.com/Endika/flipper-wifi-census/compare/v0.1.24...v0.1.25) (2026-09-20)
+
+
+### Bug Fixes
+
+* no silent ceilings in the host tools, and no fixed one at all in wc_clean ([7c6aa4d](https://github.com/Endika/flipper-wifi-census/commit/7c6aa4d097ed4e2ef4effcf38959dca962e5eeb1))
+
 ## [0.1.24](https://github.com/Endika/flipper-wifi-census/compare/v0.1.23...v0.1.24) (2026-09-20)
 
 
