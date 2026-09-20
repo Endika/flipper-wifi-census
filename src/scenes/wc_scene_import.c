@@ -60,9 +60,9 @@ bool wc_scene_import_name_on_event(void *context, SceneManagerEvent event) {
         if (wc_import_service_run(&app->store, app->clock, app->import_path, app->text_buf)) {
             scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneStart);
         } else {
-            wc_show_message(app,
-                            "Import failed.\nThe pcap may be too large\n(over 64 KB), not a "
-                            "raw-802.11\ncapture, or unreadable.\nUse the PC tool for big ones.");
+            wc_show_message(app, "Import failed.\n\nThe file is not a\nraw-802.11 (linktype "
+                                 "105)\npcap, or could not be\nread from the SD.\n\nSize is "
+                                 "no longer a\nlimit: it is streamed.");
         }
         return true;
     }

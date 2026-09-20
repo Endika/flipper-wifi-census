@@ -24,3 +24,7 @@ void wc_show_message(WcApp *app, const char *text);
 // is refused by the loader exactly like a corrupt one, and "could not read" then sends you
 // hunting for a broken file instead of telling you it is simply bigger than the Flipper.
 void wc_explain_load_failure(WcApp *app, const char *filename, char *out, size_t cap);
+
+// Of two captures, explain the one that actually refused. Asking "is the first one small?" gets
+// it wrong, because a corrupt file reports no devices just as a small one does.
+void wc_explain_which_failed(WcApp *app, const char *first, const char *second);

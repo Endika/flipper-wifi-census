@@ -23,6 +23,9 @@ size_t wc_capture_size(const WcCensus *c);
 // Fixed serialized sizes, for streaming a capture record-by-record (no whole-file buffer).
 size_t wc_capture_header_size(void);
 size_t wc_capture_record_size(void);
+// The stride of a stored capture of that version, which is NOT always the current one: v1
+// records are shorter, and reading them at the v2 stride walks off the records.
+size_t wc_capture_record_size_of(uint16_t version);
 
 // Serialize just the header / one device record into `out` (>= the sizes above).
 void wc_capture_put_header(uint8_t *out, const WcCaptureMeta *meta, uint16_t count);

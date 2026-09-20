@@ -582,11 +582,65 @@ static void test_merge_service_reports_what_the_ceiling_dropped(void) {
     free(store_data);
 }
 
+// A v1 capture's records are shorter than today's. Merging one means striding by ITS size, not
+// by the current one, or every record after the first is read from the middle of its neighbour.
+static void test_merge_reads_a_v1_capture(void) {
+    FakeStore *store_data = calloc(1, sizeof(FakeStore));
+    assert(store_data);
+    WcStorePort store = fake_store_port(store_data);
+
+    // Hand-build a v1 file with two devices, so a wrong stride shows on the second.
+    const size_t v1_rec = 6 + 1 + 1 + 1 + 1 + 4 + 4 + 4 + WC_SIG_MAX_SSIDS * (WC_SSID_MAX_LEN + 1);
+    size_t hdr = wc_capture_header_size();
+    uint8_t *buf = calloc(1, hdr + 2 * v1_rec);
+    assert(buf);
+    memcpy(buf, "WCEN", 4);
+    buf[4] = 1;       // version 1
+    buf[hdr - 2] = 2; // count = 2
+    for (int i = 0; i < 2; i++) {
+        uint8_t *r = buf + hdr + (size_t)i * v1_rec;
+        r[0] = 0x00;
+        r[1] = 0x1B;
+        r[2] = 0x21;
+        r[5] = (uint8_t)(0x40 + i); // two distinct stable MACs
+        r[9] = 1;                   // obs_count = 1
+    }
+    assert(store.write_file(store.self, "old" WC_CAP_EXT, buf, hdr + 2 * v1_rec));
+    free(buf);
+
+    // A current-format capture to merge it into.
+    WcCensus *now = calloc(1, sizeof(WcCensus));
+    assert(now);
+    wc_census_init(now);
+    WcSignature sig;
+    memset(&sig, 0, sizeof(sig));
+    sig.mac[0] = 0x00;
+    sig.mac[1] = 0x1B;
+    sig.mac[2] = 0x21;
+    sig.mac[5] = 0x99;
+    assert(wc_census_add(now, &sig));
+    WcCaptureMeta meta;
+    memset(&meta, 0, sizeof(meta));
+    snprintf(meta.label, sizeof(meta.label), "now");
+    assert(wc_capture_service_save(&store, "now", &meta, now));
+
+    uint16_t devices = 0, dropped = 0;
+    assert(wc_merge_service_run(&store, "now" WC_CAP_EXT, "old" WC_CAP_EXT, "both", &devices,
+                                &dropped));
+    assert(devices == 3); // one of ours plus both of theirs, none garbled into a duplicate
+    assert(dropped == 0);
+
+    wc_census_free(now);
+    free(now);
+    free(store_data);
+}
+
 int main(void) {
     test_scan_service_builds_census();
     test_import_service_from_pcap();
     test_merge_service_end_to_end();
     test_merge_service_reports_what_the_ceiling_dropped();
+    test_merge_reads_a_v1_capture();
     test_capture_save_load_and_csv();
     test_compare_service_end_to_end();
     test_known_service_mark_and_match();

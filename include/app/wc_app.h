@@ -71,6 +71,7 @@ typedef struct {
     bool autosave;         // rotate to a new file when the census fills, instead of dropping
     char autosave_base[WC_TEXT_BUF_SIZE]; // base name for the current auto-save run
     uint16_t autosave_idx;                // next auto-save file index
+    uint16_t autosave_failed;             // chunks the SD refused, shown on the scan screen
 
     // Browsing / comparison state.
     char text_buf[WC_TEXT_BUF_SIZE]; // capture/label entry

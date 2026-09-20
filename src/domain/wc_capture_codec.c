@@ -51,6 +51,10 @@ size_t wc_capture_record_size(void) {
     return WC_RECORD_V2;
 }
 
+size_t wc_capture_record_size_of(uint16_t version) {
+    return record_size(version);
+}
+
 void wc_capture_put_header(uint8_t *out, const WcCaptureMeta *meta, uint16_t count) {
     uint8_t *p = out;
     memcpy(p, k_magic, 4);

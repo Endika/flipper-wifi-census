@@ -15,7 +15,9 @@ static void scan_timer_cb(void *context) {
 static void scan_render(WcApp *app) {
     WcCensusStats s = wc_scan_stats(&app->scan);
     char tail[40];
-    if (app->autosave) {
+    if (app->autosave && app->autosave_failed > 0) {
+        snprintf(tail, sizeof(tail), "!! %u chunk(s) NOT saved", app->autosave_failed);
+    } else if (app->autosave) {
         snprintf(tail, sizeof(tail), "Auto-save: file %u", app->autosave_idx);
     } else if (app->scan.census.dropped > 0) {
         snprintf(tail, sizeof(tail), "FULL +%u dropped", app->scan.census.dropped);
@@ -83,7 +85,9 @@ static void scan_save_chunk(WcApp *app) {
     meta.epoch = app->scan_started;
     meta.duration_s = wc_clock_now(&app->clock) - app->scan_started;
     meta.channels_mask = 0x3FFF;
-    wc_capture_service_save(&app->store, name, &meta, &app->scan.census);
+    if (!wc_capture_service_save(&app->store, name, &meta, &app->scan.census)) {
+        app->autosave_failed++; // a full or absent SD loses the chunk; the scan screen says so
+    }
     app->autosave_idx++;
 }
 
@@ -94,6 +98,7 @@ void wc_scene_scan_on_enter(void *context) {
     if (app->autosave) {
         wc_default_name(app->scan_started, "auto", app->autosave_base, sizeof(app->autosave_base));
         app->autosave_idx = 1;
+        app->autosave_failed = 0;
     }
     app->scan_link_ok = scan_serial_start(app);
     if (!app->scan_link_ok) {

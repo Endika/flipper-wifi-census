@@ -123,6 +123,9 @@ static WcSignature *link_late(WcCensus *c, WcSignature *dev, const char *ssid) {
         return dev; // nobody else seeks it, or it is already a place name
     }
     uint16_t self = (uint16_t)(dev - c->devices);
+    if (self != a && self != b) {
+        return dev; // dev is not one of the two: its SSID slots were full, or it is an AP
+    }
     uint16_t other = (a == self) ? b : a;
     if (other == self) {
         return dev;
