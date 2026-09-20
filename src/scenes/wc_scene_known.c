@@ -81,23 +81,29 @@ void wc_scene_mark_label_on_exit(void *context) {
 // Known devices (list)
 // ---------------------------------------------------------------------------
 
+static void known_row_label(const void *context, uint32_t index, char *out, size_t cap) {
+    const WcApp *app = context;
+    if (index >= app->known.count) {
+        out[0] = '\0';
+        return;
+    }
+    const WcKnown *k = &app->known.items[index];
+    if (k->type == WcRuleBySsid) {
+        snprintf(out, cap, "%s [ssid:%s]", k->label, k->ssid);
+    } else {
+        snprintf(out, cap, "%s [%02X:%02X:%02X]", k->label, k->mac[0], k->mac[1], k->mac[2]);
+    }
+}
+
 void wc_scene_known_on_enter(void *context) {
     WcApp *app = context;
     wc_known_service_load(&app->store, &app->known);
     wc_scroll_list_reset(app->list_view);
     wc_scroll_list_set_header(app->list_view, "Known (select to edit)");
-    for (uint16_t i = 0; i < app->known.count; i++) {
-        const WcKnown *k = &app->known.items[i];
-        char label[64];
-        if (k->type == WcRuleBySsid) {
-            snprintf(label, sizeof(label), "%s [ssid:%s]", k->label, k->ssid);
-        } else {
-            snprintf(label, sizeof(label), "%s [%02X:%02X:%02X]", k->label, k->mac[0], k->mac[1],
-                     k->mac[2]);
-        }
-        wc_scroll_list_add_item(app->list_view, label, i, wc_list_cb, app);
-    }
-    if (app->known.count == 0) {
+    if (app->known.count > 0) {
+        wc_scroll_list_add_generated(app->list_view, app->known.count, known_row_label, wc_list_cb,
+                                     app);
+    } else {
         wc_scroll_list_add_item(app->list_view, "(none yet)", WC_MAX_LIST, wc_list_cb, app);
     }
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);

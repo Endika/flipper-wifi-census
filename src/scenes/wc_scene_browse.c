@@ -154,33 +154,41 @@ void wc_scene_file_actions_on_exit(void *context) {
 // Devices (of a loaded capture)
 // ---------------------------------------------------------------------------
 
+// Lead with the most identifying bit so a row still says something before it scrolls: the
+// probed network if any (the key signal), else the vendor, else the MAC tail. Full detail is
+// one click away in the detail scene.
+static void device_label(const void *context, uint32_t index, char *out, size_t cap) {
+    const WcApp *app = context;
+    const WcCensus *c = app->browse_census;
+    if (!c || index >= c->count) {
+        out[0] = '\0';
+        return;
+    }
+    const WcSignature *d = &c->devices[index];
+    if (d->ssid_count > 0) {
+        snprintf(out, cap, "%s >%s", wc_device_type_name(d->type), d->ssids[0]);
+        return;
+    }
+    const char *vendor = wc_signature_vendor(d);
+    if (vendor[0]) {
+        snprintf(out, cap, "%s %s %02X:%02X:%02X", wc_device_type_name(d->type), vendor, d->mac[3],
+                 d->mac[4], d->mac[5]);
+    } else {
+        snprintf(out, cap, "%s %02X:%02X:%02X:%02X:%02X:%02X", wc_device_type_name(d->type),
+                 d->mac[0], d->mac[1], d->mac[2], d->mac[3], d->mac[4], d->mac[5]);
+    }
+}
+
 void wc_scene_devices_on_enter(void *context) {
     WcApp *app = context;
     wc_scroll_list_reset(app->list_view);
     wc_scroll_list_set_header(app->list_view, "Devices (select)");
-    WcCensus *c = app->browse_census;
+    const WcCensus *c = app->browse_census;
     uint16_t n = c ? c->count : 0;
-    for (uint16_t i = 0; i < n && i < WC_MAX_LIST; i++) {
-        const WcSignature *d = &c->devices[i];
-        char label[64];
-        // Lead with the most identifying bit so the truncated row still says something: the
-        // probed network if any (the key signal), else the vendor, else the MAC tail. Full
-        // detail (whole MAC, all networks) is one click away in the detail scene.
-        if (d->ssid_count > 0) {
-            snprintf(label, sizeof(label), "%s >%s", wc_device_type_name(d->type), d->ssids[0]);
-        } else {
-            const char *vendor = wc_signature_vendor(d);
-            if (vendor[0]) {
-                snprintf(label, sizeof(label), "%s %s %02X:%02X:%02X", wc_device_type_name(d->type),
-                         vendor, d->mac[3], d->mac[4], d->mac[5]);
-            } else {
-                snprintf(label, sizeof(label), "%s %02X:%02X:%02X:%02X:%02X:%02X",
-                         wc_device_type_name(d->type), d->mac[0], d->mac[1], d->mac[2], d->mac[3],
-                         d->mac[4], d->mac[5]);
-            }
-        }
-        wc_scroll_list_add_item(app->list_view, label, i, wc_list_cb, app);
+    if (n > WC_MAX_LIST) {
+        n = WC_MAX_LIST;
     }
+    wc_scroll_list_add_generated(app->list_view, n, device_label, wc_list_cb, app);
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }
 
@@ -289,6 +297,15 @@ void wc_scene_device_detail_on_exit(void *context) {
 // Networks sought (directed SSIDs devices are probing for)
 // ---------------------------------------------------------------------------
 
+static void network_label(const void *context, uint32_t index, char *out, size_t cap) {
+    const WcApp *app = context;
+    if (index >= app->list_count) {
+        out[0] = '\0';
+        return;
+    }
+    snprintf(out, cap, "%s (%u)", app->list_names[index], app->list_counts[index]);
+}
+
 void wc_scene_networks_on_enter(void *context) {
     WcApp *app = context;
     wc_scroll_list_reset(app->list_view);
@@ -301,17 +318,17 @@ void wc_scene_networks_on_enter(void *context) {
             for (uint16_t i = 0; i < n && i < WC_MAX_LIST; i++) {
                 strncpy(app->list_names[i], t[i].ssid, WC_TEXT_BUF_SIZE - 1);
                 app->list_names[i][WC_TEXT_BUF_SIZE - 1] = '\0';
-                char label[64];
-                snprintf(label, sizeof(label), "%s (%u)", t[i].ssid, t[i].devices);
-                wc_scroll_list_add_item(app->list_view, label, i, wc_list_cb, app);
+                app->list_counts[i] = t[i].devices;
                 app->list_count++;
-            }
-            if (n == 0) {
-                wc_scroll_list_add_item(app->list_view, "(none sought)", WC_MAX_LIST, wc_list_cb,
-                                        app);
             }
             free(t);
         }
+    }
+    if (app->list_count > 0) {
+        wc_scroll_list_add_generated(app->list_view, app->list_count, network_label, wc_list_cb,
+                                     app);
+    } else {
+        wc_scroll_list_add_item(app->list_view, "(none sought)", WC_MAX_LIST, wc_list_cb, app);
     }
     view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }

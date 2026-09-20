@@ -8,7 +8,7 @@
 #define WC_SCROLL_LIST_TICK_MS 333
 
 typedef struct {
-    char label[WC_SCROLL_LIST_LABEL_MAX];
+    const char *label; // NULL -> the list's label_fn writes it while drawing
     uint32_t index;
     WcScrollListCb callback;
     void *callback_context;
@@ -20,6 +20,8 @@ typedef struct {
     size_t position;
     size_t window_position;
     size_t scroll_counter;
+    WcScrollListLabelFn label_fn;
+    void *label_ctx;
     bool selected_overflows; // set while drawing: whether the selected label needs to move
     FuriString *header;
     FuriString *scratch; // the firmware element takes a FuriString, the labels are char[]
@@ -70,7 +72,16 @@ static void wc_scroll_list_draw_callback(Canvas *canvas, void *_model) {
             canvas_set_color(canvas, ColorBlack);
         }
 
-        furi_string_set_str(model->scratch, model->items[position].label);
+        const WcScrollListItem *item = &model->items[position];
+        if (item->label) {
+            furi_string_set_str(model->scratch, item->label);
+        } else {
+            char generated[WC_SCROLL_LIST_LABEL_MAX] = {0};
+            if (model->label_fn) {
+                model->label_fn(model->label_ctx, item->index, generated, sizeof(generated));
+            }
+            furi_string_set_str(model->scratch, generated);
+        }
         const size_t text_width = item_width - 11;
         if (selected) {
             model->selected_overflows =
@@ -212,6 +223,8 @@ WcScrollList *wc_scroll_list_alloc(void) {
             model->window_position = 0;
             model->scroll_counter = 0;
             model->selected_overflows = false;
+            model->label_fn = NULL;
+            model->label_ctx = NULL;
             model->header = furi_string_alloc();
             model->scratch = furi_string_alloc();
         },
@@ -248,6 +261,8 @@ void wc_scroll_list_reset(WcScrollList *list) {
             model->position = 0;
             model->window_position = 0;
             model->scroll_counter = 0;
+            model->label_fn = NULL;
+            model->label_ctx = NULL;
             furi_string_reset(model->header);
         },
         true);
@@ -276,8 +291,29 @@ void wc_scroll_list_add_item(WcScrollList *list, const char *label, uint32_t ind
         {
             if (model->count < WC_SCROLL_LIST_MAX) {
                 WcScrollListItem *item = &model->items[model->count];
-                snprintf(item->label, sizeof(item->label), "%s", label);
+                item->label = label;
                 item->index = index;
+                item->callback = callback;
+                item->callback_context = callback_context;
+                model->count++;
+            }
+        },
+        true);
+}
+
+void wc_scroll_list_add_generated(WcScrollList *list, uint16_t count, WcScrollListLabelFn label_fn,
+                                  WcScrollListCb callback, void *callback_context) {
+    furi_check(list);
+    furi_check(label_fn);
+    with_view_model(
+        list->view, WcScrollListModel * model,
+        {
+            model->label_fn = label_fn;
+            model->label_ctx = callback_context;
+            for (uint16_t i = 0; i < count && model->count < WC_SCROLL_LIST_MAX; i++) {
+                WcScrollListItem *item = &model->items[model->count];
+                item->label = NULL; // generated on demand, never stored
+                item->index = i;
                 item->callback = callback;
                 item->callback_context = callback_context;
                 model->count++;
