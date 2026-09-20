@@ -1,6 +1,6 @@
 // Host tool: merge many capture files into one census, printed as CSV on stdout. The Flipper
 // caps a single scan/merge at WC_CENSUS_MAX_DEVICES for RAM reasons; on a PC there is no such
-// limit, so you can capture a big venue as several 320-device files and combine them all here.
+// limit, so you can capture a big venue as several 100-device files and combine them all here.
 // Accepts .wcen captures and raw-802.11 .pcap files, mixed. Build: `make tool`.
 //
 //   wc_merge part1.wcen part2.wcen scan.pcap ... > all.csv
