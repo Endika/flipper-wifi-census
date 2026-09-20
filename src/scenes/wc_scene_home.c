@@ -170,8 +170,9 @@ void wc_scene_about_on_enter(void *context) {
              "Honest limits: stable-MAC gear and devices probing a named network cross reliably; "
              "modern phones randomize their MAC and are counted but not crossable (use Known "
              "devices).\n\nPassive only. Everything stays on the SD card.\n\n"
-             // The free heap decides how far the %u-device ceiling can move: a scan reserves the
-             // whole census up front, and a merge holds two of them plus a file buffer.
+             // The free heap decides how far the ceiling can move: a scan reserves the whole
+             // census up front, and captures are streamed, so nothing else of that size is
+             // held alongside it.
              "Ceiling: %u devices\nFree heap now: %u B\nLowest seen: %u B",
              wc_version(), (unsigned)WC_CENSUS_MAX_DEVICES, (unsigned)memmgr_get_free_heap(),
              (unsigned)memmgr_get_minimum_free_heap());

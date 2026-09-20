@@ -143,7 +143,8 @@ static void test_bssid_is_not_an_ssid(void) {
     WcObservation o;
     const char *line = "RSSI: -50 Ch: 6 BSSID: 00:11:22:33:44:55 ESSID: HomeNet";
     assert(wc_parse_summary_line(line, strlen(line), &o));
-    assert(o.probed_ssid[0] == 0); // not the MAC text
+    // The MAC text must not become the network name, and the real name must not be lost.
+    assert(strcmp(o.probed_ssid, "HomeNet") == 0);
     assert(o.rssi == -50);
     assert(o.channel == 6);
 }

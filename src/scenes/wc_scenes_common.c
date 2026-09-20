@@ -23,6 +23,10 @@ static void files_list_cb(void *context, const char *name) {
     if (n <= el || strcmp(name + n - el, WC_CAP_EXT) != 0) {
         return;
     }
+    if (n >= WC_TEXT_BUF_SIZE) {
+        app->list_overflow++; // stored truncated it would name a file that does not exist
+        return;
+    }
     if (app->list_count >= WC_MAX_NAMED) {
         app->list_overflow++; // no room to even name it; the header will say how many
         return;

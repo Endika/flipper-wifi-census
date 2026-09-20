@@ -18,6 +18,9 @@ static bool wc_back_event_callback(void *context) {
 
 static WcApp *wc_app_alloc(void) {
     WcApp *app = malloc(sizeof(WcApp));
+    if (!app) {
+        return NULL; // the entry point exits; memset on NULL would take the device down
+    }
     memset(app, 0, sizeof(WcApp));
 
     app->store = wc_store_furi_port();
@@ -85,6 +88,9 @@ static void wc_app_free(WcApp *app) {
 
 int32_t wc_app_run(void) {
     WcApp *app = wc_app_alloc();
+    if (!app) {
+        return -1;
+    }
     scene_manager_next_scene(app->scene_manager, WcSceneStart);
     view_dispatcher_run(app->view_dispatcher);
     wc_app_free(app);

@@ -256,6 +256,7 @@ linter:
 		tests/test_app_services.c \
 		tests/test_timefmt.c \
 		tests/test_probe_frame.c \
+		tests/test_pcap_reader.c \
 		tools/wc_import.c \
 		tools/wc_merge.c \
 		tools/wc_iefp.c \

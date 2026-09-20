@@ -244,7 +244,10 @@ int main(int argc, char **argv) {
     wc_census_init(clean);
     wc_census_set_max(clean, WC_TOOL_MAX_DEVICES);
     BuildCtx bc = {.raw = raw, .clean = clean};
-    wc_pcap_read(buf, (size_t)sz, on_frame, &bc);
+    if (!wc_pcap_read(buf, (size_t)sz, on_frame, &bc)) {
+        fprintf(stderr, "! %s is not a classic libpcap of linktype 105 - nothing was read\n", path);
+        return 1;
+    }
 
     fprintf(stderr, "at %.0fs / %d: %d links, %d of them provably wrong on stable MACs\n", window,
             seq_gap, links, fp);

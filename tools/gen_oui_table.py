@@ -34,6 +34,8 @@ VENDORS = [
 ]
 
 # Hand-curated OUIs kept first for each vendor so a known-good entry is never dropped by CAP.
+# Always kept, whatever the selection below does: these are the blocks the tests pin and the
+# hardware this app is actually pointed at.
 PRIORITY = {
     "WcVendorApple": ["3C22FB", "F01898", "A483E7"],
     "WcVendorSamsung": ["00166C", "5C0A5B", "781FDB"],
@@ -43,8 +45,9 @@ PRIORITY = {
     "WcVendorIntel": ["001B21", "3413E8", "3CA9F4"],
     "WcVendorDell": ["001422", "180373"],
     "WcVendorMicrosoft": ["281878"],
-    "WcVendorEspressif": ["240AC4", "A4CF12", "7CDFA1"],
+    "WcVendorEspressif": ["240AC4", "A4CF12", "7CDFA1", "004B12"],
     "WcVendorRaspberryPi": ["B827EB", "DCA632", "E45F01", "D83ADD"],
+    "WcVendorBroadcom": ["0005B5"],
 }
 
 
@@ -60,7 +63,13 @@ def main():
         matches = sorted({oui for oui, org in by_org if rx.search(org)})
         prio = [o for o in PRIORITY.get(enum, []) if o in matches]
         rest = [o for o in matches if o not in prio]
-        kept = prio + rest[: max(0, CAP - len(prio))]
+        # The most recent assignments, never the first. The list is sorted by OUI, which tracks
+        # assignment age, so taking the head kept only each vendor's oldest blocks and missed
+        # every modern phone and laptop. Measured on a sample of current hardware, taking the
+        # tail doubles the hit rate at exactly the same table size; raising CAP beyond this
+        # bought nothing, and the table is resident in RAM for the life of the app.
+        take = max(0, CAP - len(prio))
+        kept = prio + (rest[-take:] if take else [])
         for oui in kept:
             b = f"0x{oui[0:2]}, 0x{oui[2:4]}, 0x{oui[4:6]}"
             print(f"    {{{{{b}}}, {enum}}},")

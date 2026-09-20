@@ -87,12 +87,6 @@ static size_t fake_file_size(void *self, const char *name) {
     return f ? f->len : 0;
 }
 
-// The fake keys files by name; a "path" is just used as that key, so the path-based calls reuse
-// the name-based lookups. Enough to exercise the import service's path plumbing.
-static size_t fake_read_path(void *self, const char *path, uint8_t *buf, size_t cap) {
-    return fake_read(self, path, buf, cap);
-}
-
 static size_t fake_read_range_path(void *self, const char *path, size_t offset, uint8_t *buf,
                                    size_t cap) {
     return fake_read_range(self, path, offset, buf, cap);
@@ -179,7 +173,6 @@ static WcStorePort fake_store_port(FakeStore *s) {
                      .write_file = fake_write,
                      .read_file = fake_read,
                      .file_size = fake_file_size,
-                     .read_file_path = fake_read_path,
                      .file_size_path = fake_file_size_path,
                      .read_range = fake_read_range,
                      .read_range_path = fake_read_range_path,

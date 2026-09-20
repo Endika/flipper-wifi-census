@@ -30,6 +30,12 @@ bool wc_settings_service_load(const WcStorePort *store, WcSettings *s) {
     s->baud = (uint32_t)buf[4] | ((uint32_t)buf[5] << 8) | ((uint32_t)buf[6] << 16) |
               ((uint32_t)buf[7] << 24);
     s->autosave = (buf[8] != 0);
+    // A stored baud the serial layer cannot use would open the port at nonsense; only the two
+    // the Settings screen offers are accepted.
+    if (s->baud != 115200 && s->baud != 230400) {
+        s->baud = WC_SETTINGS_BAUD_DEFAULT;
+        return false;
+    }
     return true;
 }
 

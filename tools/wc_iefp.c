@@ -120,6 +120,10 @@ int main(int argc, char **argv) {
     // 1. Does the fingerprint identify a device?
     uint16_t clusters = 0, covered = 0, biggest = 0, bad_fp = 0, wrongly_merged = 0;
     uint8_t *seen = calloc(c->count ? c->count : 1, 1);
+    if (!seen) {
+        fprintf(stderr, "! out of memory\n");
+        return 1;
+    }
     for (uint16_t i = 0; i < c->count; i++) {
         if (seen[i] || c->devices[i].ie_hash == 0) {
             continue;
@@ -164,6 +168,9 @@ int main(int argc, char **argv) {
 
     // 2. How much does duration inflate the count? Same file, growing windows.
     const uint32_t span = pcap_span(buf, (size_t)sz);
+    if (span == 0) {
+        fprintf(stderr, "! the capture spans no time: the window table below says nothing\n");
+    }
     printf("\ncapture span: %us\nwindow  devices  stable  random  distinct fp  random/fp\n", span);
     for (uint32_t w = 60; w <= 3600; w += (w < 300 ? 60 : 120)) {
         WcCensus *win = census_alloc();

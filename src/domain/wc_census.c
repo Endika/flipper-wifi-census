@@ -48,7 +48,8 @@ WcSignature *wc_census_add(WcCensus *c, const WcSignature *sig) {
         return NULL;
     }
     c->devices[c->count] = *sig;
-    return &c->devices[c->count++];
+    c->count++;
+    return &c->devices[c->count - 1];
 }
 
 bool wc_census_reserve(WcCensus *c, uint16_t n) {
@@ -157,8 +158,12 @@ WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t n
         c->dropped++;
         return NULL;
     }
-    WcSignature *slot = &c->devices[c->count++];
+    // Fill the slot before publishing it. The serial worker adds devices while the GUI thread
+    // walks the array twice a second; bumping count first exposes stale bytes, and a leftover
+    // ssid_count of up to 255 sends that walk off the end of the two SSID slots.
+    WcSignature *slot = &c->devices[c->count];
     wc_signature_from_obs(slot, obs, now);
+    c->count++;
     return slot;
 }
 

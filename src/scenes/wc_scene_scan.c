@@ -38,6 +38,9 @@ static void scan_render(WcApp *app) {
 // Returns false when the USART is busy; the adapter is freed again so nothing dangles.
 static bool scan_serial_start(WcApp *app) {
     app->serial = wc_serial_furi_alloc(app->baud);
+    if (!app->serial) {
+        return false;
+    }
     WcSerialPort port = wc_serial_furi_port(app->serial);
     if (!port.start(port.self, wc_scan_on_line, &app->scan)) {
         wc_serial_furi_free(app->serial);
@@ -46,6 +49,10 @@ static bool scan_serial_start(WcApp *app) {
     }
     return true;
 }
+
+static const char *const k_no_room_text =
+    "Not enough memory\nfor a scan.\n\nThe app could not\nreserve room for\n%u devices.\n\n"
+    "Leave a capture open?\nGo back to the menu\nand in again.";
 
 static const char *const k_uart_busy_text =
     "UART busy\n\nAnother service holds the\nGPIO serial port.\n\nDisable Settings >\nExpansion "
@@ -66,12 +73,15 @@ static void scan_serial_stop(WcApp *app) {
     }
 }
 
-static void scan_reset_census(WcApp *app) {
+// Returns false when the up-front reservation fails. That reservation is what keeps the serial
+// worker from reallocating the array while the GUI thread is walking it, so a scan without it
+// is not a slower scan, it is an unsafe one.
+static bool scan_reset_census(WcApp *app) {
     wc_census_free(&app->scan.census);
     wc_scan_init(&app->scan, app->clock);
     // Reserve up front: a busy scan then never reallocs (the transient 2x copy is what
     // exhausted the heap and rebooted the Flipper mid-scan).
-    wc_census_reserve(&app->scan.census, WC_CENSUS_MAX_DEVICES);
+    return wc_census_reserve(&app->scan.census, WC_CENSUS_MAX_DEVICES);
 }
 
 // Save the current census as "<base>_<idx>" (used by auto-save). Serial must be stopped so the
@@ -96,7 +106,12 @@ void wc_scene_scan_on_enter(void *context) {
     // Back from the name screen re-enters this scene. Resetting here would throw away the very
     // capture the user was about to name, so a scan already in hand is resumed, not restarted.
     if (app->scan.census.count == 0) {
-        scan_reset_census(app);
+        if (!scan_reset_census(app)) {
+            snprintf(app->result_text, WC_RESULT_TEXT_SIZE, k_no_room_text,
+                     (unsigned)WC_CENSUS_MAX_DEVICES);
+            scene_manager_next_scene(app->scene_manager, WcSceneMsg);
+            return;
+        }
         app->scan_started = wc_clock_now(&app->clock);
     }
     if (app->autosave && app->autosave_idx == 0) {
@@ -131,7 +146,14 @@ bool wc_scene_scan_on_event(void *context, SceneManagerEvent event) {
         if (app->autosave && app->scan.census.count >= WC_AUTOSAVE_ROTATE_AT) {
             scan_serial_stop(app);
             scan_save_chunk(app);
-            scan_reset_census(app);
+            if (!scan_reset_census(app)) {
+                // Without the reservation the worker would grow the array under the GUI's feet.
+                app->scan_link_ok = false;
+                snprintf(app->result_text, WC_RESULT_TEXT_SIZE, k_no_room_text,
+                         (unsigned)WC_CENSUS_MAX_DEVICES);
+                scene_manager_next_scene(app->scene_manager, WcSceneMsg);
+                return true;
+            }
             if (!scan_serial_start(app)) {
                 // The port went away mid-run: stop cleanly and say so rather than freezing.
                 app->scan_link_ok = false;
@@ -203,6 +225,14 @@ bool wc_scene_save_on_event(void *context, SceneManagerEvent event) {
         meta.epoch = app->scan_started;
         meta.duration_s = wc_clock_now(&app->clock) - app->scan_started;
         meta.channels_mask = 0x3FFF; // channels 1-14 hopped
+        if (wc_capture_service_exists(&app->store, app->text_buf)) {
+            snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
+                     "NOT saved.\n\n%s already exists,\nand saving would\nreplace it.\n\nThe "
+                     "scan is still\nhere: press Back and\npick another name.",
+                     app->text_buf);
+            scene_manager_next_scene(app->scene_manager, WcSceneMsg);
+            return true;
+        }
         if (!wc_capture_service_save(&app->store, app->text_buf, &meta, &app->scan.census)) {
             // Keep the census: it is the whole scan, and the name screen is still behind us.
             snprintf(app->result_text, WC_RESULT_TEXT_SIZE,
@@ -247,8 +277,11 @@ static void debug_on_line(void *ctx, const char *line, size_t len) {
 void wc_scene_serial_debug_on_enter(void *context) {
     WcApp *app = context;
     app->serial = wc_serial_furi_alloc(app->baud);
-    WcSerialPort port = wc_serial_furi_port(app->serial);
-    bool ok = port.start(port.self, debug_on_line, app);
+    bool ok = false;
+    if (app->serial) {
+        WcSerialPort port = wc_serial_furi_port(app->serial);
+        ok = port.start(port.self, debug_on_line, app);
+    }
     if (!ok) {
         wc_serial_furi_free(app->serial);
         app->serial = NULL;

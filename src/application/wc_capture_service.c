@@ -50,6 +50,12 @@ bool wc_capture_service_save(const WcStorePort *store, const char *basename,
     return ok;
 }
 
+bool wc_capture_service_exists(const WcStorePort *store, const char *basename) {
+    char name[WC_BASENAME_MAX + 8];
+    snprintf(name, sizeof(name), "%s%s", basename, WC_CAP_EXT);
+    return store->file_size(store->self, name) > 0;
+}
+
 uint16_t wc_capture_service_device_count(const WcStorePort *store, const char *filename) {
     uint8_t head[64];
     const size_t hdr = wc_capture_header_size();

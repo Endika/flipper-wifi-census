@@ -108,6 +108,9 @@ static void serial_stop(void *self) {
 
 WcSerialFuri *wc_serial_furi_alloc(uint32_t baud) {
     WcSerialFuri *s = malloc(sizeof(WcSerialFuri));
+    if (!s) {
+        return NULL;
+    }
     memset(s, 0, sizeof(*s));
     s->baud = baud;
     return s;
