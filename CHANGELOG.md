@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.29](https://github.com/Endika/flipper-wifi-census/compare/v0.1.28...v0.1.29) (2026-09-20)
+
+
+### Performance Improvements
+
+* cheaper live stats, block reads off the SD, and the whole MAC on screen ([39abcf8](https://github.com/Endika/flipper-wifi-census/commit/39abcf85f28cd0c5d133f4ca4abaa327f70edbaa))
+
 ## [0.1.28](https://github.com/Endika/flipper-wifi-census/compare/v0.1.27...v0.1.28) (2026-09-20)
 
 
