@@ -12,9 +12,11 @@ uploaded anywhere.
 
 | Main menu | Live scan |
 |:---:|:---:|
-| ![Main menu](assets/menu.png) | ![Live scan: unique/stable/random counts, types, networks sought](assets/sniff.png) |
+| ![Main menu, with auto-save flipped by left and right on the Scan row](assets/menu.png) | ![Live scan: unique/stable/random counts, types, networks sought](assets/sniff.png) |
 | **Device detail** | **Networks sought** |
 | ![Device detail: MAC, vendor, signal and the networks it probes for](assets/device-detail.png) | ![Networks list, select one to tag it as known](assets/networks.png) |
+| **Capture summary** | |
+| ![Summary of a stored capture: devices, stable vs randomized, types, networks sought](assets/summary.png) | |
 
 ## What it can and cannot tell you (please read)
 
