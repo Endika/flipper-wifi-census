@@ -3,11 +3,10 @@
 #include "include/domain/wc_observation.h"
 #include "include/domain/wc_signature.h"
 
-#define WC_CENSUS_MAX_DEVICES 100 // live scan/merge ceiling (bounds FAP heap during a session)
-// Reading a saved capture is a one-shot allocation, not a growing live buffer, so it tolerates
-// larger files than a live scan holds — e.g. captures made before the live ceiling was lowered.
-// The exact-length check in the codec is the real guard; this just bounds the allocation.
-#define WC_CENSUS_READ_MAX 512
+// Ceiling for a live scan, a merge, and a loaded capture (bounds the FAP heap). A capture file
+// with more devices than this is rejected, not loaded — the Flipper hasn't the RAM to browse it;
+// combine those on a PC with wc_merge.
+#define WC_CENSUS_MAX_DEVICES 100
 #define WC_CENSUS_GROW 16 // device-array growth chunk
 
 // The set of unique devices seen over one scan session. The device array grows on demand

@@ -139,7 +139,9 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
     uint16_t count = get_u16(p);
     p += 2;
 
-    if (count > WC_CENSUS_READ_MAX) {
+    // A capture with more devices than the ceiling is rejected rather than loaded: the Flipper
+    // hasn't the RAM to browse it safely. The caller surfaces a clear "too large" message.
+    if (count > WC_CENSUS_MAX_DEVICES) {
         return false;
     }
     // The declared count must account for the buffer exactly — no truncation, no trailer.
@@ -148,11 +150,6 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
     }
 
     wc_census_init(c);
-    // Raise the ceiling to fit this file (a saved capture may hold more than a live scan does),
-    // but never below the live ceiling so a loaded census still has room to grow when merged.
-    if (count > WC_CENSUS_MAX_DEVICES) {
-        wc_census_set_max(c, count);
-    }
     wc_census_reserve(c, count); // one allocation for the whole file (no realloc growth)
     for (uint16_t i = 0; i < count; i++) {
         WcSignature d;
