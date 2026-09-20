@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.31](https://github.com/Endika/flipper-wifi-census/compare/v0.1.30...v0.1.31) (2026-09-20)
+
+
+### Documentation
+
+* one short description, the one the catalog listing shows ([4ac40cb](https://github.com/Endika/flipper-wifi-census/commit/4ac40cbd8e2f0e5e9a5c0e6a0e1a2b3c4d5e6f70))
+
 ## [0.1.30](https://github.com/Endika/flipper-wifi-census/compare/v0.1.29...v0.1.30) (2026-09-20)
 
 
