@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.17](https://github.com/Endika/flipper-wifi-census/compare/v0.1.16...v0.1.17) (2026-09-20)
+
+
+### Features
+
+* expand vendor OUI table from the IEEE registry (619 verified entries) ([fcbbbe2](https://github.com/Endika/flipper-wifi-census/commit/fcbbbe2c7bdb20c300a8095743626660e8b1ad9c))
+
 ## [0.1.16](https://github.com/Endika/flipper-wifi-census/compare/v0.1.15...v0.1.16) (2026-09-19)
 
 
