@@ -60,18 +60,55 @@ uint16_t wc_capture_service_device_count(const WcStorePort *store, const char *f
     return wc_capture_peek_count(head, hdr);
 }
 
+bool wc_capture_service_stream(const WcStorePort *store, const char *filename, WcCaptureMeta *meta,
+                               uint16_t max_devices, WcCaptureDeviceFn on_device, void *ctx) {
+    uint8_t head[64];
+    const size_t hdr = wc_capture_header_size();
+    if (hdr > sizeof(head) || store->read_range(store->self, filename, 0, head, hdr) != hdr) {
+        return false;
+    }
+    uint16_t count = 0, version = 0;
+    if (!wc_capture_get_header(head, hdr, meta, &count, &version) || count > max_devices) {
+        return false;
+    }
+    const size_t rec = wc_capture_record_size_of(version);
+    uint8_t buf[256];
+    if (rec > sizeof(buf)) {
+        return false;
+    }
+    // The declared count must account for the file exactly, as the buffered reader also checks.
+    if (store->file_size(store->self, filename) != hdr + (size_t)count * rec) {
+        return false;
+    }
+    for (uint16_t i = 0; i < count; i++) {
+        WcSignature d;
+        if (store->read_range(store->self, filename, hdr + (size_t)i * rec, buf, rec) != rec ||
+            !wc_capture_get_record(buf, rec, version, &d)) {
+            return false;
+        }
+        on_device(ctx, &d);
+    }
+    return true;
+}
+
+static void load_one(void *ctx, const WcSignature *d) {
+    wc_census_add(ctx, d);
+}
+
+// Streamed, not buffered: holding a capture whole alongside the census it fills is two large
+// contiguous blocks at once, and a failed allocation reboots this hardware.
 bool wc_capture_service_load(const WcStorePort *store, const char *filename, WcCaptureMeta *meta,
                              WcCensus *c) {
-    size_t size = store->file_size(store->self, filename);
-    if (size == 0) {
+    const uint16_t ceiling = c->max;
+    wc_census_free(c);
+    wc_census_set_max(c, ceiling);
+    // One allocation for the whole capture: growing by reallocs needs the array twice over
+    // while it copies, which is what exhausted the heap before.
+    wc_census_reserve(c, wc_capture_service_device_count(store, filename));
+    if (!wc_capture_service_stream(store, filename, meta, ceiling, load_one, c)) {
+        wc_census_free(c);
+        wc_census_set_max(c, ceiling);
         return false;
     }
-    uint8_t *buf = malloc(size);
-    if (!buf) {
-        return false;
-    }
-    size_t n = store->read_file(store->self, filename, buf, size);
-    bool ok = (n > 0) && wc_capture_read(meta, c, buf, n);
-    free(buf);
-    return ok;
+    return true;
 }
