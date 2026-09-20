@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.28](https://github.com/Endika/flipper-wifi-census/compare/v0.1.27...v0.1.28) (2026-09-20)
+
+
+### Bug Fixes
+
+* close the rest of the whole-tree review, from the census race to the vendor table ([53e4c75](https://github.com/Endika/flipper-wifi-census/commit/53e4c754efc6247e27e0647b4e70ba3ac337426d))
+
 ## [0.1.27](https://github.com/Endika/flipper-wifi-census/compare/v0.1.26...v0.1.27) (2026-09-20)
 
 
