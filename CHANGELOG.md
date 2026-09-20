@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.27](https://github.com/Endika/flipper-wifi-census/compare/v0.1.26...v0.1.27) (2026-09-20)
+
+
+### Bug Fixes
+
+* stop losing data on a refused write, a failed read or a mistaken label ([a337a6a](https://github.com/Endika/flipper-wifi-census/commit/a337a6a53d30823cd75f1dbde32e4ee8d7210821))
+
 ## [0.1.26](https://github.com/Endika/flipper-wifi-census/compare/v0.1.25...v0.1.26) (2026-09-20)
 
 
