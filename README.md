@@ -75,15 +75,19 @@ isolated in `src/domain/wc_marauder_parse.c` and can be adjusted there.
 1. **Scan** — starts probe sniffing; the screen shows live counts (unique / stable /
    randomized / by type). Press **Back** to stop.
 2. Name the capture and it is saved to the SD as `<name>.wcen` (plus a `<name>.csv` you can
-   read on a PC).
-3. Move to the other location and scan again.
-4. **Compare** — pick two saved captures; you get how many devices each had, how many are
+   read on a PC). With **Auto-save** on — the menu entry right under Scan — it names and saves
+   itself instead, rotating to a new file when it fills.
+3. **Summary** — open a capture and the first entry gives its numbers back: devices, stable vs
+   randomized, types, networks sought, and (for captures imported from a pcap) how many phones
+   are behind those randomized MACs, as a range.
+4. Move to the other location and scan again.
+5. **Compare** — pick two saved captures; you get how many devices each had, how many are
    common (high confidence: same stable MAC or same probed SSID), and how many randomized
    devices could not be crossed.
-5. **Device detail** — from a capture's device list, select a device to see its full MAC,
+6. **Device detail** — from a capture's device list, select a device to see its full MAC,
    type, vendor, signal, sighting count and **the networks it is probing for**. If the device
    is identifiable (stable MAC, or it names a network), a **Mark known** button labels it.
-6. **Known devices & networks** — mark rules are the randomization-resistant signal:
+7. **Known devices & networks** — mark rules are the randomization-resistant signal:
    - A **stable-MAC** device is remembered by its MAC.
    - A device that **probes a named network** is remembered by that SSID — so any phone asking
      for it matches, whatever random MAC it uses. You can also tag a network **directly** from
