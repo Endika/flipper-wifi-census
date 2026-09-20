@@ -65,14 +65,14 @@ static void test_round_trip(void) {
     assert(c2.devices[0].ie_vendor == WcVendorApple);
 }
 
-// A capture holding more devices than a live scan's ceiling must still read back: files made
-// before the live ceiling was lowered (or on a higher-cap build) stay openable. Regression for
-// "Devices/Networks show nothing when opening a denser capture".
-static void test_reads_capture_larger_than_live_cap(void) {
-    const uint16_t big = WC_CENSUS_MAX_DEVICES + 50; // above the live ceiling, below READ_MAX
+// A capture with more devices than the ceiling is rejected, not loaded: the Flipper hasn't the
+// RAM to browse it, so the reader returns false and the UI shows a clear "too large" message
+// instead of silently opening an empty list.
+static void test_rejects_capture_over_cap(void) {
+    const uint16_t big = WC_CENSUS_MAX_DEVICES + 50; // above the ceiling
     WcCensus c;
     wc_census_init(&c);
-    wc_census_set_max(&c, big); // the writer side is unconstrained here
+    wc_census_set_max(&c, big); // writer allowed to build an oversized file (as a PC tool would)
     for (uint16_t i = 0; i < big; i++) {
         uint8_t mac[6] = {0x00, 0x1B, 0x21, (uint8_t)(i >> 8), (uint8_t)i, 0x01};
         add_device(&c, mac, false, WcDeviceLaptop, -60, 1, 100, 200);
@@ -89,9 +89,7 @@ static void test_reads_capture_larger_than_live_cap(void) {
 
     WcCaptureMeta m2;
     WcCensus c2;
-    assert(wc_capture_read(&m2, &c2, buf, need)); // used to fail once the live cap dropped to 100
-    assert(c2.count == big);
-    wc_census_free(&c2);
+    assert(!wc_capture_read(&m2, &c2, buf, need)); // rejected: over the device ceiling
     wc_census_free(&c);
     free(buf);
 }
@@ -205,7 +203,7 @@ static void test_csv(void) {
 
 int main(void) {
     test_round_trip();
-    test_reads_capture_larger_than_live_cap();
+    test_rejects_capture_over_cap();
     test_reads_v1_capture();
     test_write_rejects_small_buffer();
     test_read_rejects_bad_input();

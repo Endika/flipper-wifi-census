@@ -409,16 +409,16 @@ bool wc_scene_file_actions_on_event(void *context, SceneManagerEvent event) {
             if (ensure_browse_loaded(app)) {
                 scene_manager_next_scene(app->scene_manager, WcSceneDevices);
             } else {
-                show_message(app, "Can't open this capture.\nIt may be too large (over\n512 "
-                                  "devices) or corrupt.\nSplit/merge it on a PC\nwith wc_merge.");
+                show_message(app, "Can't open this capture.\nIt may be too large (over\n100 "
+                                  "devices) or corrupt.\nCombine it on a PC\nwith wc_merge.");
             }
             return true;
         case ActionNetworks:
             if (ensure_browse_loaded(app)) {
                 scene_manager_next_scene(app->scene_manager, WcSceneNetworks);
             } else {
-                show_message(app, "Can't open this capture.\nIt may be too large (over\n512 "
-                                  "devices) or corrupt.\nSplit/merge it on a PC\nwith wc_merge.");
+                show_message(app, "Can't open this capture.\nIt may be too large (over\n100 "
+                                  "devices) or corrupt.\nCombine it on a PC\nwith wc_merge.");
             }
             return true;
         case ActionRename:
