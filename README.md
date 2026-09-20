@@ -75,8 +75,8 @@ isolated in `src/domain/wc_marauder_parse.c` and can be adjusted there.
 1. **Scan** — starts probe sniffing; the screen shows live counts (unique / stable /
    randomized / by type). Press **Back** to stop.
 2. Name the capture and it is saved to the SD as `<name>.wcen` (plus a `<name>.csv` you can
-   read on a PC). With **Auto-save** on — the menu entry right under Scan — it names and saves
-   itself instead, rotating to a new file when it fills.
+   read on a PC). With **Auto-save** on — flipped with left/right on the Scan row — it names and
+   saves itself instead, rotating to a new file when it fills.
 3. **Summary** — open a capture and the first entry gives its numbers back: devices, stable vs
    randomized, types, networks sought, and (for captures imported from a pcap) how many phones
    are behind those randomized MACs, as a range.
@@ -138,9 +138,10 @@ tuning what the live scan can extract, e.g. whether the network name appears in 
 
 ## Auto-save (rotate) for big venues
 
-The main menu carries an **Auto-save: On / Off** entry right under Scan — press OK on it to
-flip the setting where you decide it, without walking into Settings first. The choice is
-remembered between runs of the app, and the Settings entry shows the same value.
+Auto-save rides on the **Scan** row itself, shown on its right as `<Auto-save: On>`; **left and
+right flip it** while OK still starts the scan. It sits where the decision is actually taken,
+instead of in a menu you have to remember to visit first. The choice is remembered between runs
+of the app, and the Settings entry shows the same value.
 
 With it on, a scan that fills up saves the current file and starts a fresh one automatically (`auto_YYYYMMDD_HHMM_1`, `_2`, …), instead of dropping
 devices. Pressing Back saves the final chunk too. You then merge all the pieces on a PC (see

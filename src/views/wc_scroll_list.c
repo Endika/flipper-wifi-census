@@ -20,12 +20,17 @@ typedef struct {
     size_t position;
     size_t window_position;
     size_t scroll_counter;
-    uint16_t hidden; // entries not shown, refused here or by the caller
+    uint16_t hidden;     // entries not shown, refused here or by the caller
+    int32_t value_index; // item carrying a right-hand value, or -1
+    const char *value;   // borrowed, like a label
+    WcScrollListNudgeFn nudge;
+    void *nudge_ctx;
     WcScrollListLabelFn label_fn;
     void *label_ctx;
     bool selected_overflows; // set while drawing: whether the selected label needs to move
     FuriString *header;
-    FuriString *scratch; // the firmware element takes a FuriString, the labels are char[]
+    FuriString *scratch;   // the firmware element takes a FuriString, the labels are char[]
+    FuriString *value_str; // ditto, for the right-hand value
 } WcScrollListModel;
 
 struct WcScrollList {
@@ -100,8 +105,21 @@ static void wc_scroll_list_draw_callback(Canvas *canvas, void *_model) {
             model->selected_overflows =
                 canvas_string_width(canvas, furi_string_get_cstr(model->scratch)) > text_width;
         }
-        elements_scrollable_text_line(canvas, 6, item_y + item_height - 4, text_width,
-                                      model->scratch, scroll, !selected);
+        const uint8_t text_y = item_y + item_height - 4;
+        if (model->value && model->value_index >= 0 &&
+            item->index == (uint32_t)model->value_index) {
+            // Label left, value right: the option is decided on the row that uses it.
+            furi_string_printf(model->value_str, "%s%s%s", selected ? "<" : " ", model->value,
+                               selected ? ">" : " ");
+            const uint16_t vw = canvas_string_width(canvas, furi_string_get_cstr(model->value_str));
+            canvas_draw_str(canvas, (int32_t)(item_width - 3 - vw), text_y,
+                            furi_string_get_cstr(model->value_str));
+            elements_scrollable_text_line(canvas, 6, text_y, text_width - vw - 4, model->scratch,
+                                          scroll, !selected);
+        } else {
+            elements_scrollable_text_line(canvas, 6, text_y, text_width, model->scratch, scroll,
+                                          !selected);
+        }
     }
 
     elements_scrollbar(canvas, model->position, model->count);
@@ -148,6 +166,31 @@ static void wc_scroll_list_process_down(WcScrollList *list) {
         true);
 }
 
+// Left/right adjust the selected row's value, when it has one. The scene redraws by updating
+// whatever the value points at, so the view only has to ask.
+static bool wc_scroll_list_process_nudge(WcScrollList *list, int8_t delta) {
+    WcScrollListNudgeFn nudge = NULL;
+    void *ctx = NULL;
+    uint32_t index = 0;
+    with_view_model(
+        list->view, const WcScrollListModel *model,
+        {
+            if (model->nudge && model->value_index >= 0 && model->position < model->count &&
+                model->items[model->position].index == (uint32_t)model->value_index) {
+                nudge = model->nudge;
+                ctx = model->nudge_ctx;
+                index = model->items[model->position].index;
+            }
+        },
+        false);
+    if (!nudge) {
+        return false;
+    }
+    nudge(ctx, index, delta);
+    with_view_model(list->view, WcScrollListModel * model, { model->scroll_counter = 0; }, true);
+    return true;
+}
+
 static void wc_scroll_list_process_ok(WcScrollList *list) {
     WcScrollListCb callback = NULL;
     void *context = NULL;
@@ -188,6 +231,10 @@ static bool wc_scroll_list_input_callback(InputEvent *event, void *context) {
         } else if (event->key == InputKeyDown) {
             wc_scroll_list_process_down(list);
             consumed = true;
+        } else if (event->key == InputKeyLeft) {
+            consumed = wc_scroll_list_process_nudge(list, -1);
+        } else if (event->key == InputKeyRight) {
+            consumed = wc_scroll_list_process_nudge(list, +1);
         }
     }
     if (!consumed && event->key == InputKeyOk && event->type == InputTypeShort) {
@@ -241,6 +288,8 @@ WcScrollList *wc_scroll_list_alloc(void) {
             model->label_ctx = NULL;
             model->header = furi_string_alloc();
             model->scratch = furi_string_alloc();
+            model->value_str = furi_string_alloc();
+            model->value_index = -1;
         },
         true);
     return list;
@@ -255,6 +304,7 @@ void wc_scroll_list_free(WcScrollList *list) {
         {
             furi_string_free(model->header);
             furi_string_free(model->scratch);
+            furi_string_free(model->value_str);
         },
         false);
     view_free(list->view);
@@ -278,6 +328,9 @@ void wc_scroll_list_reset(WcScrollList *list) {
             model->hidden = 0;
             model->label_fn = NULL;
             model->label_ctx = NULL;
+            model->value_index = -1;
+            model->value = NULL;
+            model->nudge = NULL;
             furi_string_reset(model->header);
         },
         true);
@@ -343,33 +396,21 @@ void wc_scroll_list_add_generated(WcScrollList *list, uint16_t count, WcScrollLi
         true);
 }
 
-void wc_scroll_list_note_hidden(WcScrollList *list, uint16_t n) {
-    furi_check(list);
-    with_view_model(list->view, WcScrollListModel * model, { model->hidden += n; }, true);
-}
-
-void wc_scroll_list_set_selected_item(WcScrollList *list, uint32_t index) {
+void wc_scroll_list_set_item_value(WcScrollList *list, uint32_t index, const char *value,
+                                   WcScrollListNudgeFn on_nudge, void *context) {
     furi_check(list);
     with_view_model(
         list->view, WcScrollListModel * model,
         {
-            size_t position = 0;
-            for (size_t i = 0; i < model->count; i++) {
-                if (model->items[i].index == index) {
-                    position = i;
-                    break;
-                }
-            }
-            model->position = position;
-            model->window_position = (position > 0) ? position - 1 : 0;
-            model->scroll_counter = 0;
-
-            const size_t on_screen = items_on_screen(model);
-            if (model->count <= on_screen) {
-                model->window_position = 0;
-            } else if (model->window_position > model->count - on_screen) {
-                model->window_position = model->count - on_screen;
-            }
+            model->value_index = (int32_t)index;
+            model->value = value;
+            model->nudge = on_nudge;
+            model->nudge_ctx = context;
         },
         true);
+}
+
+void wc_scroll_list_note_hidden(WcScrollList *list, uint16_t n) {
+    furi_check(list);
+    with_view_model(list->view, WcScrollListModel * model, { model->hidden += n; }, true);
 }
