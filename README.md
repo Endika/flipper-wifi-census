@@ -96,6 +96,19 @@ isolated in `src/domain/wc_marauder_parse.c` and can be adjusted there.
    - In **Known**, select an entry to **Rename** or **Delete** it.
    Labeled devices and networks are highlighted in comparisons.
 
+**How two sightings are judged to be one device.** An identical stable MAC, or a randomized MAC
+naming a network that exactly one known device seeks. Both refinements below came out of
+measuring real captures, not from reasoning about them:
+
+- A network name sought by *two* devices is a place, not an identity — `DefaultSSID` was
+  measured on 16 devices with distinct, certain MACs in a single capture. Such a name stops
+  being usable for linking, and two stable MACs are never merged whatever they both seek.
+- Phones send nameless probes as well as named ones. A device first heard on a nameless probe
+  used to be recorded and never reconsidered (1982 of 2171 device creations in one capture), so
+  a phone that names a network a second later was counted twice. It is now checked again when
+  the name arrives: on two real captures that collapsed 17 and 82 duplicate devices, with the
+  count of certain stable-MAC devices unchanged — the loss is only ever duplicates.
+
 A randomized phone that only sends wildcard probes (no named network) can't be turned into a
 durable rule — the detail screen says so instead of failing silently. Tag a network it seeks.
 

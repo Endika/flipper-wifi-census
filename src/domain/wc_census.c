@@ -76,20 +76,71 @@ static WcSignature *find_by_mac(WcCensus *c, const uint8_t mac[6]) {
     return NULL;
 }
 
-// A client device (not an AP) that already knows this directed SSID.
-static WcSignature *find_client_by_ssid(WcCensus *c, const char *ssid) {
+// Clients (not APs) already known to seek this directed SSID. Fills `first`/`second` with the
+// first two found and returns how many exist in total.
+static uint16_t clients_seeking(WcCensus *c, const char *ssid, uint16_t *first, uint16_t *second) {
+    uint16_t n = 0;
     if (ssid[0] == '\0') {
-        return NULL;
+        return 0;
     }
     for (uint16_t i = 0; i < c->count; i++) {
-        if (c->devices[i].type == WcDeviceAp) {
+        if (c->devices[i].type == WcDeviceAp || !wc_signature_has_ssid(&c->devices[i], ssid)) {
             continue;
         }
-        if (wc_signature_has_ssid(&c->devices[i], ssid)) {
-            return &c->devices[i];
+        if (n == 0 && first) {
+            *first = i;
+        } else if (n == 1 && second) {
+            *second = i;
         }
+        n++;
     }
-    return NULL;
+    return n;
+}
+
+// A directed SSID is an identity only while exactly ONE device is known to seek it. Once two
+// devices do, it names a place or a router model, not an aparato: "DefaultSSID" was measured
+// on 16 devices with distinct STABLE MACs in one capture, so linking on it would fuse sixteen
+// strangers into one. Such a name is dropped as a signal rather than trusted.
+static WcSignature *find_client_by_ssid(WcCensus *c, const char *ssid) {
+    uint16_t first = 0;
+    return (clients_seeking(c, ssid, &first, NULL) == 1) ? &c->devices[first] : NULL;
+}
+
+// Fold the device at `from` into `keep` and close the gap. Returns the (possibly moved) `keep`.
+static WcSignature *absorb_and_remove(WcCensus *c, uint16_t keep, uint16_t from) {
+    wc_signature_absorb(&c->devices[keep], &c->devices[from]);
+    for (uint16_t i = from; i + 1 < c->count; i++) {
+        c->devices[i] = c->devices[i + 1];
+    }
+    c->count--;
+    return &c->devices[keep > from ? keep - 1 : keep];
+}
+
+// A device whose FIRST probe carried no network name is recorded blind, and the SSID rule never
+// gets another look at it - measured at 1982 of 2171 creations in a real capture, leaving 105
+// devices that later named a network already identifying another. So when a device learns a
+// name late, check then too. Only a randomized MAC is ever folded away: two stable MACs are two
+// aparatos, whatever they both seek.
+static WcSignature *link_late(WcCensus *c, WcSignature *dev, const char *ssid) {
+    uint16_t a = 0, b = 0;
+    if (clients_seeking(c, ssid, &a, &b) != 2) {
+        return dev; // nobody else seeks it, or it is already a place name
+    }
+    uint16_t self = (uint16_t)(dev - c->devices);
+    uint16_t other = (a == self) ? b : a;
+    if (other == self) {
+        return dev;
+    }
+    const bool self_random = c->devices[self].mac_random;
+    const bool other_random = c->devices[other].mac_random;
+    if (!self_random && !other_random) {
+        return dev; // two certain identities: the shared name is a place, not a device
+    }
+    // Keep the stable one when there is one; otherwise keep the one seen first.
+    if (self_random && (!other_random || other < self)) {
+        return absorb_and_remove(c, other, self);
+    }
+    return absorb_and_remove(c, self, other);
 }
 
 WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t now) {
@@ -101,7 +152,7 @@ WcSignature *wc_census_observe(WcCensus *c, const WcObservation *obs, uint32_t n
     }
     if (existing) {
         wc_signature_merge(existing, obs, now);
-        return existing;
+        return link_late(c, existing, obs->probed_ssid);
     }
     if (!ensure_one(c)) {
         c->dropped++;
