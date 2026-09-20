@@ -35,6 +35,13 @@ bool wc_known_add(WcKnownDb *db, const WcKnown *k);
 // SSID cannot be turned into a durable rule -> returns false.
 bool wc_known_rule_from_signature(WcKnown *out, const WcSignature *sig, const char *label);
 
+// Build an SSID rule directly from a network name the user picked (any device probing this
+// SSID will match). Returns false if the SSID is empty.
+bool wc_known_rule_ssid(WcKnown *out, const char *ssid, const char *label);
+
+// Remove the rule at `index`, shifting the rest down. Returns false if `index` is out of range.
+bool wc_known_remove(WcKnownDb *db, uint16_t index);
+
 // The first known rule that matches this device, or NULL.
 const WcKnown *wc_known_match(const WcKnownDb *db, const WcSignature *sig);
 

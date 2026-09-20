@@ -278,6 +278,42 @@ static void test_known_service_mark_and_match(void) {
     free(store_data);
 }
 
+static void test_known_service_multiple_and_manage(void) {
+    FakeStore *store_data = calloc(1, sizeof(FakeStore));
+    assert(store_data);
+    WcStorePort store = fake_store_port(store_data);
+
+    // Two stable devices both persist (regression: earlier only one appeared to save).
+    WcSignature a;
+    memset(&a, 0, sizeof(a));
+    memcpy(a.mac, (const uint8_t[]){0xB8, 0x27, 0xEB, 1, 2, 3}, 6);
+    WcSignature b;
+    memset(&b, 0, sizeof(b));
+    memcpy(b.mac, (const uint8_t[]){0x00, 0x1B, 0x21, 4, 5, 6}, 6);
+    assert(wc_known_service_mark(&store, &a, "Pi"));
+    assert(wc_known_service_mark(&store, &b, "Laptop"));
+
+    // A network tagged directly is also durable.
+    assert(wc_known_service_mark_ssid(&store, "Casa_Ana", "Ana"));
+
+    WcKnownDb db;
+    assert(wc_known_service_load(&store, &db));
+    assert(db.count == 3);
+
+    // Rename entry 1 and confirm it sticks.
+    assert(wc_known_service_rename(&store, 1, "Work laptop"));
+    assert(wc_known_service_load(&store, &db));
+    assert(strcmp(db.items[1].label, "Work laptop") == 0);
+
+    // Remove entry 0; the rest shift down and persist.
+    assert(wc_known_service_remove(&store, 0));
+    assert(wc_known_service_load(&store, &db));
+    assert(db.count == 2);
+    assert(strcmp(db.items[0].label, "Work laptop") == 0);
+    assert(db.items[1].type == WcRuleBySsid && strcmp(db.items[1].ssid, "Casa_Ana") == 0);
+    free(store_data);
+}
+
 static void test_known_service_save_load_direct(void) {
     FakeStore *store_data = calloc(1, sizeof(FakeStore));
     assert(store_data);
@@ -403,6 +439,7 @@ int main(void) {
     test_capture_save_load_and_csv();
     test_compare_service_end_to_end();
     test_known_service_mark_and_match();
+    test_known_service_multiple_and_manage();
     test_known_service_save_load_direct();
     printf("test_app_services: OK\n");
     return 0;
