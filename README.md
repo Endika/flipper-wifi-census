@@ -121,8 +121,11 @@ tuning what the live scan can extract, e.g. whether the network name appears in 
 
 ## Auto-save (rotate) for big venues
 
-Turn on **Settings → Auto-save (rotate)** and a scan that fills up saves the current file and
-starts a fresh one automatically (`auto_YYYYMMDD_HHMM_1`, `_2`, …), instead of dropping
+The main menu carries an **Auto-save: On / Off** entry right under Scan — press OK on it to
+flip the setting where you decide it, without walking into Settings first. The choice is
+remembered between runs of the app, and the Settings entry shows the same value.
+
+With it on, a scan that fills up saves the current file and starts a fresh one automatically (`auto_YYYYMMDD_HHMM_1`, `_2`, …), instead of dropping
 devices. Pressing Back saves the final chunk too. You then merge all the pieces on a PC (see
 below) into one census of the whole venue. A brief moment is lost at each rotation while the
 file is written.

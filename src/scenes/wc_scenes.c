@@ -15,9 +15,16 @@
 // Shared callbacks and helpers
 // ---------------------------------------------------------------------------
 
-static void wc_submenu_cb(void *context, uint32_t index) {
+static void wc_list_cb(void *context, uint32_t index) {
     WcApp *app = context;
     view_dispatcher_send_custom_event(app->view_dispatcher, index);
+}
+
+// Persist the user options after any change, so the next run of the app starts where this one
+// left off instead of silently reverting to the defaults.
+static void wc_settings_persist(WcApp *app) {
+    WcSettings s = {.baud = app->baud, .autosave = app->autosave};
+    wc_settings_service_save(&app->store, &s);
 }
 
 static void wc_text_input_cb(void *context) {
@@ -40,22 +47,22 @@ static void files_list_cb(void *context, const char *name) {
     if (n > el && strcmp(name + n - el, app->list_ext) == 0 && app->list_count < WC_MAX_LIST) {
         strncpy(app->list_names[app->list_count], name, WC_TEXT_BUF_SIZE - 1);
         app->list_names[app->list_count][WC_TEXT_BUF_SIZE - 1] = '\0';
-        submenu_add_item(app->submenu, app->list_names[app->list_count], app->list_count,
-                         wc_submenu_cb, app);
+        wc_scroll_list_add_item(app->list_view, app->list_names[app->list_count], app->list_count,
+                                wc_list_cb, app);
         app->list_count++;
     }
 }
 
 static void populate_list(WcApp *app, const char *header, const char *ext, const char *empty_msg) {
-    submenu_reset(app->submenu);
-    submenu_set_header(app->submenu, header);
+    wc_scroll_list_reset(app->list_view);
+    wc_scroll_list_set_header(app->list_view, header);
     app->list_ext = ext;
     app->list_count = 0;
     app->store.list(app->store.self, files_list_cb, app);
     if (app->list_count == 0) {
-        submenu_add_item(app->submenu, empty_msg, WC_MAX_LIST, wc_submenu_cb, app);
+        wc_scroll_list_add_item(app->list_view, empty_msg, WC_MAX_LIST, wc_list_cb, app);
     }
-    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }
 
 static void populate_files(WcApp *app, const char *header) {
@@ -81,6 +88,7 @@ static const char *known_label_for(WcApp *app, const WcMatch *m) {
 
 typedef enum {
     StartScan,
+    StartAutoSave,
     StartFiles,
     StartCompare,
     StartMerge,
@@ -91,20 +99,29 @@ typedef enum {
     StartAbout,
 } StartItem;
 
+// Auto-save lives in Settings too, but it is the one option you decide right before scanning,
+// so the menu both shows it and toggles it.
+static void start_populate(WcApp *app) {
+    char autosave_label[24];
+    snprintf(autosave_label, sizeof(autosave_label), "Auto-save: %s", app->autosave ? "On" : "Off");
+    wc_scroll_list_reset(app->list_view);
+    wc_scroll_list_set_header(app->list_view, "WiFi Census");
+    wc_scroll_list_add_item(app->list_view, "Scan", StartScan, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, autosave_label, StartAutoSave, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Files", StartFiles, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Compare", StartCompare, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Merge", StartMerge, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Import pcap", StartImport, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Known devices", StartKnown, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Settings", StartSettings, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Serial debug", StartSerialDebug, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "About", StartAbout, wc_list_cb, app);
+}
+
 void wc_scene_start_on_enter(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
-    submenu_set_header(app->submenu, "WiFi Census");
-    submenu_add_item(app->submenu, "Scan", StartScan, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Files", StartFiles, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Compare", StartCompare, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Merge", StartMerge, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Import pcap", StartImport, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Known devices", StartKnown, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Settings", StartSettings, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Serial debug", StartSerialDebug, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "About", StartAbout, wc_submenu_cb, app);
-    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+    start_populate(app);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }
 
 bool wc_scene_start_on_event(void *context, SceneManagerEvent event) {
@@ -115,6 +132,12 @@ bool wc_scene_start_on_event(void *context, SceneManagerEvent event) {
     switch (event.event) {
         case StartScan:
             scene_manager_next_scene(app->scene_manager, WcSceneScan);
+            return true;
+        case StartAutoSave:
+            app->autosave = !app->autosave;
+            wc_settings_persist(app);
+            start_populate(app);
+            wc_scroll_list_set_selected_item(app->list_view, StartAutoSave);
             return true;
         case StartFiles:
             scene_manager_next_scene(app->scene_manager, WcSceneFiles);
@@ -147,7 +170,7 @@ bool wc_scene_start_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_start_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 // ---------------------------------------------------------------------------
@@ -379,7 +402,7 @@ bool wc_scene_files_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_files_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 // ---------------------------------------------------------------------------
@@ -428,13 +451,13 @@ void wc_scene_msg_on_exit(void *context) {
 
 void wc_scene_file_actions_on_enter(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
-    submenu_set_header(app->submenu, app->selected_file);
-    submenu_add_item(app->submenu, "Devices", ActionDevices, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Networks sought", ActionNetworks, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Rename", ActionRename, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Delete", ActionDelete, wc_submenu_cb, app);
-    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+    wc_scroll_list_reset(app->list_view);
+    wc_scroll_list_set_header(app->list_view, app->selected_file);
+    wc_scroll_list_add_item(app->list_view, "Devices", ActionDevices, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Networks sought", ActionNetworks, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Rename", ActionRename, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Delete", ActionDelete, wc_list_cb, app);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }
 
 bool wc_scene_file_actions_on_event(void *context, SceneManagerEvent event) {
@@ -477,7 +500,7 @@ bool wc_scene_file_actions_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_file_actions_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 // ---------------------------------------------------------------------------
@@ -486,8 +509,8 @@ void wc_scene_file_actions_on_exit(void *context) {
 
 void wc_scene_devices_on_enter(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
-    submenu_set_header(app->submenu, "Devices (select)");
+    wc_scroll_list_reset(app->list_view);
+    wc_scroll_list_set_header(app->list_view, "Devices (select)");
     WcCensus *c = app->browse_census;
     uint16_t n = c ? c->count : 0;
     for (uint16_t i = 0; i < n && i < WC_MAX_LIST; i++) {
@@ -509,9 +532,9 @@ void wc_scene_devices_on_enter(void *context) {
                          d->mac[4], d->mac[5]);
             }
         }
-        submenu_add_item(app->submenu, label, i, wc_submenu_cb, app);
+        wc_scroll_list_add_item(app->list_view, label, i, wc_list_cb, app);
     }
-    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }
 
 bool wc_scene_devices_on_event(void *context, SceneManagerEvent event) {
@@ -527,7 +550,7 @@ bool wc_scene_devices_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_devices_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 // ---------------------------------------------------------------------------
@@ -621,8 +644,8 @@ void wc_scene_device_detail_on_exit(void *context) {
 
 void wc_scene_networks_on_enter(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
-    submenu_set_header(app->submenu, "Networks (select to tag)");
+    wc_scroll_list_reset(app->list_view);
+    wc_scroll_list_set_header(app->list_view, "Networks (select to tag)");
     app->list_count = 0;
     if (app->browse_census) {
         WcSsidTally *t = malloc(sizeof(WcSsidTally) * WC_MAX_LIST);
@@ -633,16 +656,17 @@ void wc_scene_networks_on_enter(void *context) {
                 app->list_names[i][WC_TEXT_BUF_SIZE - 1] = '\0';
                 char label[64];
                 snprintf(label, sizeof(label), "%s (%u)", t[i].ssid, t[i].devices);
-                submenu_add_item(app->submenu, label, i, wc_submenu_cb, app);
+                wc_scroll_list_add_item(app->list_view, label, i, wc_list_cb, app);
                 app->list_count++;
             }
             if (n == 0) {
-                submenu_add_item(app->submenu, "(none sought)", WC_MAX_LIST, wc_submenu_cb, app);
+                wc_scroll_list_add_item(app->list_view, "(none sought)", WC_MAX_LIST, wc_list_cb,
+                                        app);
             }
             free(t);
         }
     }
-    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }
 
 bool wc_scene_networks_on_event(void *context, SceneManagerEvent event) {
@@ -659,7 +683,7 @@ bool wc_scene_networks_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_networks_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 // ---------------------------------------------------------------------------
@@ -800,7 +824,7 @@ bool wc_scene_compare_a_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_compare_a_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 static void format_compare(WcApp *app, const WcCompareResult *r) {
@@ -850,7 +874,7 @@ bool wc_scene_compare_b_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_compare_b_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 void wc_scene_compare_result_on_enter(void *context) {
@@ -894,7 +918,7 @@ bool wc_scene_merge_a_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_merge_a_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 void wc_scene_merge_b_on_enter(void *context) {
@@ -917,7 +941,7 @@ bool wc_scene_merge_b_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_merge_b_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 void wc_scene_merge_name_on_enter(void *context) {
@@ -1052,8 +1076,8 @@ void wc_scene_import_name_on_exit(void *context) {
 void wc_scene_known_on_enter(void *context) {
     WcApp *app = context;
     wc_known_service_load(&app->store, &app->known);
-    submenu_reset(app->submenu);
-    submenu_set_header(app->submenu, "Known (select to edit)");
+    wc_scroll_list_reset(app->list_view);
+    wc_scroll_list_set_header(app->list_view, "Known (select to edit)");
     for (uint16_t i = 0; i < app->known.count; i++) {
         const WcKnown *k = &app->known.items[i];
         char label[64];
@@ -1063,12 +1087,12 @@ void wc_scene_known_on_enter(void *context) {
             snprintf(label, sizeof(label), "%s [%02X:%02X:%02X]", k->label, k->mac[0], k->mac[1],
                      k->mac[2]);
         }
-        submenu_add_item(app->submenu, label, i, wc_submenu_cb, app);
+        wc_scroll_list_add_item(app->list_view, label, i, wc_list_cb, app);
     }
     if (app->known.count == 0) {
-        submenu_add_item(app->submenu, "(none yet)", WC_MAX_LIST, wc_submenu_cb, app);
+        wc_scroll_list_add_item(app->list_view, "(none yet)", WC_MAX_LIST, wc_list_cb, app);
     }
-    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }
 
 bool wc_scene_known_on_event(void *context, SceneManagerEvent event) {
@@ -1083,7 +1107,7 @@ bool wc_scene_known_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_known_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 // ---------------------------------------------------------------------------
@@ -1097,14 +1121,14 @@ enum {
 
 void wc_scene_known_actions_on_enter(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
     const char *lbl = (app->selected_known < app->known.count)
                           ? app->known.items[app->selected_known].label
                           : "?";
-    submenu_set_header(app->submenu, lbl);
-    submenu_add_item(app->submenu, "Rename", WcKnownActionRename, wc_submenu_cb, app);
-    submenu_add_item(app->submenu, "Delete", WcKnownActionDelete, wc_submenu_cb, app);
-    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewSubmenu);
+    wc_scroll_list_set_header(app->list_view, lbl);
+    wc_scroll_list_add_item(app->list_view, "Rename", WcKnownActionRename, wc_list_cb, app);
+    wc_scroll_list_add_item(app->list_view, "Delete", WcKnownActionDelete, wc_list_cb, app);
+    view_dispatcher_switch_to_view(app->view_dispatcher, WcViewList);
 }
 
 bool wc_scene_known_actions_on_event(void *context, SceneManagerEvent event) {
@@ -1127,7 +1151,7 @@ bool wc_scene_known_actions_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_known_actions_on_exit(void *context) {
     WcApp *app = context;
-    submenu_reset(app->submenu);
+    wc_scroll_list_reset(app->list_view);
 }
 
 // ---------------------------------------------------------------------------
@@ -1179,6 +1203,7 @@ bool wc_scene_settings_on_event(void *context, SceneManagerEvent event) {
 
 void wc_scene_settings_on_exit(void *context) {
     WcApp *app = context;
+    wc_settings_persist(app);
     variable_item_list_reset(app->var_item_list);
 }
 
