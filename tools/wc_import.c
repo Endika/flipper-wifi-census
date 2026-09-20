@@ -9,8 +9,12 @@
 #include <string.h>
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s capture.pcap > census.csv\n", argv[0]);
+    const char *out_wcen = NULL;
+    if (argc == 4 && strcmp(argv[1], "-o") == 0) {
+        out_wcen = argv[2];
+        argv[1] = argv[3];
+    } else if (argc != 2) {
+        fprintf(stderr, "usage: %s [-o out.wcen] capture.pcap > census.csv\n", argv[0]);
         return 2;
     }
     FILE *f = fopen(argv[1], "rb");
@@ -47,6 +51,17 @@ int main(int argc, char **argv) {
         free(buf);
         free(c);
         return 1;
+    }
+
+    if (out_wcen) {
+        WcCaptureMeta wm;
+        memset(&wm, 0, sizeof(wm));
+        snprintf(wm.label, sizeof(wm.label), "%s", out_wcen);
+        if (!wc_tool_write_wcen(out_wcen, &wm, c)) {
+            fprintf(stderr, "! could not write %s\n", out_wcen);
+            return 1;
+        }
+        fprintf(stderr, "= wrote %s (%u devices)\n", out_wcen, c->count);
     }
 
     WcCensusStats s = wc_census_stats(c);
