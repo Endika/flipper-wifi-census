@@ -1,78 +1,96 @@
-// Host tool: cross two captures and print what they have in common, past the device ceiling the
+// Host tool: cross two or more captures and print who is in which, past the device ceiling the
 // Flipper has to keep. Accepts .wcen captures and raw-802.11 .pcap files. Build: `make tool`.
 //
 //   wc_compare monday.wcen friday.wcen > common.csv
+//   wc_compare mon.pcap tue.pcap wed.pcap > seen.csv
+//
+// Matches are high confidence by construction: an identical stable MAC, or a directed SSID
+// shared between non-AP devices with at least one randomized side.
 
 #include "include/domain/wc_compare.h"
 #include "tools/wc_load.h"
 
-#include <string.h>
+#define WC_COMPARE_MAX_FILES 12
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        fprintf(stderr, "usage: %s a.wcen b.wcen > common.csv\n", argv[0]);
+    const int n = argc - 1;
+    if (n < 2 || n > WC_COMPARE_MAX_FILES) {
+        fprintf(stderr, "usage: %s a b [c ...] > seen.csv   (2 to %d captures)\n", argv[0],
+                WC_COMPARE_MAX_FILES);
         return 2;
     }
 
-    WcCensus *a = malloc(sizeof(WcCensus));
-    WcCensus *b = malloc(sizeof(WcCensus));
-    WcCompareResult *r = malloc(sizeof(WcCompareResult));
-    if (!a || !b || !r) {
+    WcCensus *c = calloc((size_t)n, sizeof(WcCensus));
+    if (!c) {
         return 1;
     }
-    wc_census_init(a);
-    wc_census_set_max(a, WC_TOOL_MAX_DEVICES);
-    wc_census_init(b);
-    wc_census_set_max(b, WC_TOOL_MAX_DEVICES);
-
-    for (int i = 1; i <= 2; i++) {
-        WcCensus *into = (i == 1) ? a : b;
-        if (!wc_tool_load_file(argv[i], into)) {
-            fprintf(stderr, "! %s is not a .wcen or a supported .pcap\n", argv[i]);
+    for (int i = 0; i < n; i++) {
+        wc_census_init(&c[i]);
+        wc_census_set_max(&c[i], WC_TOOL_MAX_DEVICES);
+        if (!wc_tool_load_file(argv[i + 1], &c[i])) {
+            fprintf(stderr, "! %s is not a .wcen or a supported .pcap\n", argv[i + 1]);
             return 1;
         }
+        WcCensusStats s = wc_census_stats(&c[i]);
+        fprintf(stderr, "%d: %-28s %5u devices (%u randomized, %u crossable)\n", i, argv[i + 1],
+                s.total, s.random_count, s.unique_stable);
     }
 
-    wc_compare(r, a, b);
-
-    uint16_t by_mac = 0, by_ssid = 0;
-    for (uint16_t i = 0; i < r->match_count; i++) {
-        if (r->matches[i].reason == WcMatchBySsid) {
-            by_ssid++;
-        } else {
-            by_mac++;
+    fputs("\n   in both", stderr);
+    for (int b = 1; b < n; b++) {
+        fprintf(stderr, "%6d", b);
+    }
+    fputc('\n', stderr);
+    for (int a = 0; a < n - 1; a++) {
+        fprintf(stderr, "%10d", a);
+        for (int b = 1; b < n; b++) {
+            if (b <= a) {
+                fputs("      ", stderr);
+                continue;
+            }
+            uint16_t both = 0;
+            for (uint16_t i = 0; i < c[a].count; i++) {
+                if (wc_compare_find(&c[b], &c[a].devices[i], NULL, NULL)) {
+                    both++;
+                }
+            }
+            fprintf(stderr, "%6u", both);
         }
+        fputc('\n', stderr);
     }
 
-    fprintf(stderr, "A %s: %u devices (%u randomized)\n", argv[1], r->na, r->random_a);
-    fprintf(stderr, "B %s: %u devices (%u randomized)\n", argv[2], r->nb, r->random_b);
-    fprintf(stderr, "in both: %u (by stable MAC %u, by shared network %u)\n", r->intersection,
-            by_mac, by_ssid);
-    if (r->match_count < r->intersection) {
-        fprintf(stderr,
-                "! only %u of the %u matches are listed: rebuild with a larger"
-                " WC_COMPARE_MAX_MATCHES\n",
-                r->match_count, r->intersection);
+    // One row per device of the first capture that turns up in at least one other: the regulars
+    // of a place, which is the question several captures are taken to answer.
+    printf("mac,random,seen_in,captures\n");
+    uint32_t regulars = 0, everywhere = 0;
+    for (uint16_t i = 0; i < c[0].count; i++) {
+        const WcSignature *d = &c[0].devices[i];
+        char where[WC_COMPARE_MAX_FILES * 3 + 1];
+        size_t w = 0;
+        uint16_t seen = 1;
+        w += (size_t)snprintf(where + w, sizeof(where) - w, "0");
+        for (int b = 1; b < n; b++) {
+            if (wc_compare_find(&c[b], d, NULL, NULL)) {
+                seen++;
+                w += (size_t)snprintf(where + w, sizeof(where) - w, " %d", b);
+            }
+        }
+        if (seen < 2) {
+            continue;
+        }
+        regulars++;
+        if (seen == n) {
+            everywhere++;
+        }
+        printf("%02X:%02X:%02X:%02X:%02X:%02X,%d,%u,%s\n", d->mac[0], d->mac[1], d->mac[2],
+               d->mac[3], d->mac[4], d->mac[5], d->mac_random ? 1 : 0, seen, where);
     }
-    // The honest denominator: a randomized device with no directed SSID cannot be crossed at
-    // all, so the intersection is a floor over the crossable part, not over everyone.
-    uint16_t crossable_a = (uint16_t)(r->na - r->random_a);
-    fprintf(stderr,
-            "crossable in A: %u stable-MAC devices (+ randomized ones that probe a"
-            " named network)\n",
-            crossable_a);
+    fprintf(stderr, "\n%u devices of capture 0 turn up again; %u are in all %d\n", regulars,
+            everywhere, n);
 
-    printf("mac,reason,detail\n");
-    for (uint16_t i = 0; i < r->match_count; i++) {
-        const WcMatch *m = &r->matches[i];
-        printf("%02X:%02X:%02X:%02X:%02X:%02X,%s,%s\n", m->mac[0], m->mac[1], m->mac[2], m->mac[3],
-               m->mac[4], m->mac[5], m->reason == WcMatchBySsid ? "ssid" : "mac", m->detail);
+    for (int i = 0; i < n; i++) {
+        wc_census_free(&c[i]);
     }
-
-    wc_census_free(a);
-    wc_census_free(b);
-    free(a);
-    free(b);
-    free(r);
+    free(c);
     return 0;
 }

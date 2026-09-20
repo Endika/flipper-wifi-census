@@ -29,6 +29,24 @@ static bool same_device(const WcSignature *x, const WcSignature *y, WcMatchReaso
     return false;
 }
 
+const WcSignature *wc_compare_find(const WcCensus *c, const WcSignature *sig, WcMatchReason *reason,
+                                   char *shared_ssid) {
+    WcMatchReason r = WcMatchByMac;
+    char shared[WC_SSID_MAX_LEN + 1];
+    for (uint16_t i = 0; i < c->count; i++) {
+        if (same_device(sig, &c->devices[i], &r, shared)) {
+            if (reason) {
+                *reason = r;
+            }
+            if (shared_ssid) {
+                memcpy(shared_ssid, shared, sizeof(shared));
+            }
+            return &c->devices[i];
+        }
+    }
+    return NULL;
+}
+
 static uint16_t count_random(const WcCensus *c) {
     uint16_t n = 0;
     for (uint16_t i = 0; i < c->count; i++) {
