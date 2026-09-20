@@ -273,6 +273,13 @@ A `.wcen` built this way can hold far more than the Flipper's 320: it opens on a
 the device the app says how many devices it holds and that it is too large, rather than claiming
 the file is unreadable.
 
+## Reproducible builds
+
+The `.fap` is **not** byte-reproducible: building the same commit twice, changing nothing,
+differs by about 39 KB. Paths and compiler metadata account for it, not the code. So comparing
+two builds tells you nothing about whether a change altered the app — check the source, or a
+disassembly, not the binary.
+
 ## Building
 
 Host-side domain logic is plain C and unit-tested with gcc; `furi` is confined to the
