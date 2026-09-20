@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.24](https://github.com/Endika/flipper-wifi-census/compare/v0.1.23...v0.1.24) (2026-09-20)
+
+
+### Features
+
+* compare more than two captures and say who keeps coming back ([6cc8156](https://github.com/Endika/flipper-wifi-census/commit/6cc8156e82278238dbec0db4462290402435c15d))
+* undo MAC rotation in a long capture, and measure its own error rate ([6df0b07](https://github.com/Endika/flipper-wifi-census/commit/6df0b074ffa03982f72acb35e1b76b16a5982462))
+
 ## [0.1.23](https://github.com/Endika/flipper-wifi-census/compare/v0.1.22...v0.1.23) (2026-09-20)
 
 
