@@ -117,6 +117,29 @@ static void test_signature_ssid_cap(void) {
     assert(!wc_signature_add_ssid(&sig, ""));         // empty ignored
 }
 
+// Zero means "not measured", not a reading. A pcap carries no clock and no signal level, so a
+// device from one must not overwrite the RSSI and epoch of the same device seen live.
+static void test_unknown_never_beats_a_real_reading(void) {
+    WcSignature dst, src;
+    memset(&dst, 0, sizeof(dst));
+    memset(&src, 0, sizeof(src));
+    dst.rssi_max = -55;
+    dst.first_seen = 1700000000;
+    dst.last_seen = 1700000100;
+    dst.obs_count = 5;
+    src.obs_count = 1; // everything else unknown, as a pcap import leaves it
+
+    wc_signature_absorb(&dst, &src);
+    assert(dst.rssi_max == -55);
+    assert(dst.first_seen == 1700000000);
+
+    WcSignature blank;
+    memset(&blank, 0, sizeof(blank));
+    wc_signature_absorb(&blank, &dst); // and the real reading wins when it arrives second
+    assert(blank.rssi_max == -55);
+    assert(blank.first_seen == 1700000000);
+}
+
 int main(void) {
     test_mac_is_random();
     test_oui_vendor();
@@ -124,6 +147,7 @@ int main(void) {
     test_device_type_guess();
     test_signature_from_and_merge();
     test_signature_ssid_cap();
+    test_unknown_never_beats_a_real_reading();
     printf("test_signature: OK\n");
     return 0;
 }

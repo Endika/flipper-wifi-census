@@ -137,6 +137,27 @@ static void test_marauder_v117_directed_underscore_ssid(void) {
     assert(strcmp(o.probed_ssid, "REDWIFI_Az3t") == 0);
 }
 
+// "SSID" must only match where a word starts. Inside "BSSID" it captures an access point's MAC
+// as the network a client was asking for, and that string can become a permanent known rule.
+static void test_bssid_is_not_an_ssid(void) {
+    WcObservation o;
+    const char *line = "RSSI: -50 Ch: 6 BSSID: 00:11:22:33:44:55 ESSID: HomeNet";
+    assert(wc_parse_summary_line(line, strlen(line), &o));
+    assert(o.probed_ssid[0] == 0); // not the MAC text
+    assert(o.rssi == -50);
+    assert(o.channel == 6);
+}
+
+// A phone asking for a network called "BEACON" is a phone. Typing it as an access point drops
+// it out of the linking rule and out of every comparison.
+static void test_a_network_named_beacon_is_not_a_beacon(void) {
+    WcObservation o;
+    const char *line = "MAC: 02:11:22:33:44:55 RSSI: -60 SSID: BEACON";
+    assert(wc_parse_summary_line(line, strlen(line), &o));
+    assert(!o.is_beacon);
+    assert(strcmp(o.probed_ssid, "BEACON") == 0);
+}
+
 int main(void) {
     test_full_labeled_line();
     test_marauder_v117_requesting_directed();
@@ -150,6 +171,8 @@ int main(void) {
     test_garbage_rejected();
     test_ssid_over_32_truncated();
     test_long_line_is_safe();
+    test_bssid_is_not_an_ssid();
+    test_a_network_named_beacon_is_not_a_beacon();
     printf("test_marauder_parse: OK\n");
     return 0;
 }

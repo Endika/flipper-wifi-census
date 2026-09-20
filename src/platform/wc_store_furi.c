@@ -217,11 +217,14 @@ static bool store_write_chunk(WcFileWriter *w, const uint8_t *data, size_t len) 
 }
 
 static bool store_close_write(WcFileWriter *w) {
-    storage_file_close(w->file);
+    // The port documents this as "whether the file closed cleanly". Returning true regardless
+    // let a capture whose tail never reached the card be reported as saved - and the scan was
+    // freed on the next line.
+    const bool closed = storage_file_close(w->file);
     storage_file_free(w->file);
     furi_record_close(RECORD_STORAGE);
     free(w);
-    return true;
+    return closed;
 }
 
 static uint16_t store_list(void *self, WcStoreNameFn cb, void *ctx) {

@@ -167,9 +167,11 @@ static bool fake_write_chunk(WcFileWriter *w, const uint8_t *data, size_t len) {
     return true;
 }
 
+static bool g_fake_close_fails = false;
+
 static bool fake_close_write(WcFileWriter *w) {
     free(w);
-    return true;
+    return !g_fake_close_fails;
 }
 
 static WcStorePort fake_store_port(FakeStore *s) {
@@ -457,9 +459,9 @@ static void test_import_service_from_pcap(void) {
     assert(store.write_file(store.self, "cap.pcap", pcap, o));
 
     // A path that doesn't exist is refused (size 0), not crashed on.
-    assert(!wc_import_service_run(&store, fake_clock(), "nope.pcap", "imp"));
+    assert(!wc_import_service_run(&store, fake_clock(), "nope.pcap", "imp", NULL));
 
-    assert(wc_import_service_run(&store, fake_clock(), "cap.pcap", "imp"));
+    assert(wc_import_service_run(&store, fake_clock(), "cap.pcap", "imp", NULL));
     WcCaptureMeta m;
     WcCensus *c = calloc(1, sizeof(WcCensus));
     assert(c);
@@ -635,6 +637,31 @@ static void test_merge_reads_a_v1_capture(void) {
     free(store_data);
 }
 
+// A card that accepts the writes and then fails to flush must not be reported as a save: the
+// scan is freed straight after, so "saved" is the last word anyone gets.
+static void test_a_failed_close_is_not_a_save(void) {
+    FakeStore *store_data = calloc(1, sizeof(FakeStore));
+    assert(store_data);
+    WcStorePort store = fake_store_port(store_data);
+    WcCensus c;
+    wc_census_init(&c);
+    WcSignature sig;
+    memset(&sig, 0, sizeof(sig));
+    sig.mac[5] = 1;
+    assert(wc_census_add(&c, &sig));
+    WcCaptureMeta meta;
+    memset(&meta, 0, sizeof(meta));
+    snprintf(meta.label, sizeof(meta.label), "x");
+
+    g_fake_close_fails = true;
+    assert(!wc_capture_service_save(&store, "x", &meta, &c));
+    g_fake_close_fails = false;
+    assert(wc_capture_service_save(&store, "x", &meta, &c));
+
+    wc_census_free(&c);
+    free(store_data);
+}
+
 int main(void) {
     test_scan_service_builds_census();
     test_import_service_from_pcap();
@@ -647,6 +674,7 @@ int main(void) {
     test_known_service_multiple_and_manage();
     test_known_service_save_load_direct();
     test_settings_service_defaults_roundtrip_and_corruption();
+    test_a_failed_close_is_not_a_save();
     printf("test_app_services: OK\n");
     return 0;
 }

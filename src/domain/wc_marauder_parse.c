@@ -37,13 +37,29 @@ static bool find_mac(const char *buf, size_t buflen, uint8_t mac[6]) {
     return false;
 }
 
-// After the first occurrence of `key`, skip separators (: = space) and read an optional
-// sign and decimal digits. Returns true and sets *val when a number is found.
+static bool is_word_char(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+// A label only counts where a word starts: "SSID" must not match inside "BSSID" or "ESSID", or
+// an access point's MAC text is stored as the network a client was asking for, and the real
+// name is never recorded. Returns the character after the label, or NULL.
+static const char *after_label(const char *buf, const char *label) {
+    const size_t n = strlen(label);
+    for (const char *p = strstr(buf, label); p; p = strstr(p + 1, label)) {
+        if (p == buf || !is_word_char(p[-1])) {
+            return p + n;
+        }
+    }
+    return NULL;
+}
+
+// After `key`, skip separators (: = space) and read an optional sign and decimal digits.
+// Returns true and sets *val when a number is found.
 static bool int_after(const char *buf, const char *key, int *val) {
-    const char *p = strstr(buf, key);
+    const char *p = after_label(buf, key);
     if (!p)
         return false;
-    p += strlen(key);
     while (*p == ':' || *p == '=' || *p == ' ')
         p++;
     int sign = 1;
@@ -103,10 +119,9 @@ static void copy_unquoted(const char *p, char *out) {
 // Return a pointer just past `label` and any following separators (: = space), or NULL if the
 // label is not present in buf.
 static const char *value_after_label(const char *buf, const char *label) {
-    const char *p = strstr(buf, label);
+    const char *p = after_label(buf, label);
     if (!p)
         return NULL;
-    p += strlen(label);
     while (*p == ':' || *p == '=' || *p == ' ')
         p++;
     return p;
@@ -179,6 +194,15 @@ bool wc_parse_summary_line(const char *line, size_t len, WcObservation *out) {
     extract_ssid(buf, out->probed_ssid);
 
     // Marauder's beacon-list output labels access points; probe-sniff lines are clients.
-    out->is_beacon = (strstr(buf, "BEACON") != NULL) || (strstr(buf, "AP:") != NULL);
+    // Only what precedes the network name can say what kind of frame this is: a phone probing
+    // for a network called "BEACON" is a phone, and typing it as an access point would drop it
+    // out of both the linking rule and every comparison.
+    const char *ssid_at = value_after_label(buf, "SSID");
+    size_t head = ssid_at ? (size_t)(ssid_at - buf) : strlen(buf);
+    char kind[WC_LINE_MAX];
+    size_t kn = head < sizeof(kind) - 1 ? head : sizeof(kind) - 1;
+    memcpy(kind, buf, kn);
+    kind[kn] = '\0';
+    out->is_beacon = (after_label(kind, "BEACON") != NULL) || (after_label(kind, "AP:") != NULL);
     return true;
 }

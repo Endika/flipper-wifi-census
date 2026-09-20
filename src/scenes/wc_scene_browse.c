@@ -81,11 +81,16 @@ static void show_capture_summary(WcApp *app) {
         snprintf(phones, sizeof(phones),
                  "\nNo IE fingerprints:\nimport a pcap to bound\nthe phone count.");
     }
+    char lost[72] = "";
+    if (s.dropped > 0) {
+        snprintf(lost, sizeof(lost), "\n%u DROPPED at the\n%u-device ceiling\n", s.dropped,
+                 (unsigned)WC_CENSUS_MAX_DEVICES);
+    }
     snprintf(
         app->result_text, WC_RESULT_TEXT_SIZE,
-        "%s\n\nDevices: %u\nStable: %u\nRandom: %u (%u%%)\n\nPhone %u  Laptop %u\nIoT %u  AP %u\n"
+        "%s\n\nDevices: %u\nStable: %u\nRandom: %u (%u%%)\n%s\nPhone %u  Laptop %u\nIoT %u  AP %u\n"
         "Networks sought: %u\n%s",
-        app->selected_file, s.total, s.unique_stable, s.random_count, s.pct_random,
+        app->selected_file, s.total, s.unique_stable, s.random_count, s.pct_random, lost,
         s.by_type[WcDevicePhone], s.by_type[WcDeviceLaptop], s.by_type[WcDeviceIot],
         s.by_type[WcDeviceAp], s.networks, phones);
     scene_manager_next_scene(app->scene_manager, WcSceneMsg);
@@ -142,8 +147,12 @@ bool wc_scene_file_actions_on_event(void *context, SceneManagerEvent event) {
         case ActionDelete: {
             char csv[WC_TEXT_BUF_SIZE];
             csv_name_of(app->selected_file, csv, sizeof(csv));
-            app->store.delete_file(app->store.self, app->selected_file);
-            app->store.delete_file(app->store.self, csv);
+            if (!app->store.delete_file(app->store.self, app->selected_file)) {
+                wc_show_message(app, "Could not delete it.\nThe SD may be absent\nor write "
+                                     "protected.");
+                return true;
+            }
+            app->store.delete_file(app->store.self, csv); // a missing sidecar is not an error
             scene_manager_previous_scene(app->scene_manager);
             return true;
         }
@@ -387,8 +396,12 @@ bool wc_scene_rename_on_event(void *context, SceneManagerEvent event) {
         csv_name_of(app->selected_file, old_csv, sizeof(old_csv));
         snprintf(new_bin, sizeof(new_bin), "%s%s", app->text_buf, WC_CAP_EXT);
         snprintf(new_csv, sizeof(new_csv), "%s%s", app->text_buf, WC_CSV_EXT);
-        app->store.rename_file(app->store.self, app->selected_file, new_bin);
-        app->store.rename_file(app->store.self, old_csv, new_csv);
+        if (!app->store.rename_file(app->store.self, app->selected_file, new_bin)) {
+            wc_show_message(app, "Could not rename it.\n\nThe new name may be\ntaken, or the SD "
+                                 "may be\nabsent or write\nprotected.");
+            return true;
+        }
+        app->store.rename_file(app->store.self, old_csv, new_csv); // sidecar may not exist
         scene_manager_search_and_switch_to_another_scene(app->scene_manager, WcSceneFiles);
         return true;
     }

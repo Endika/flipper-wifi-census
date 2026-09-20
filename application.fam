@@ -1,6 +1,6 @@
 App(
     appid="flipper_wifi_census",
-    name="WiFi Census",
+    name="[ESP32] WiFi Census",
     apptype=FlipperAppType.EXTERNAL,
     entry_point="wc_app",
     stack_size=4 * 1024,

@@ -1,4 +1,4 @@
-# WiFi Census
+# [ESP32] WiFi Census
 
 A Flipper Zero app that runs a **passive Wi-Fi device census** over an **ESP32 Marauder**
 dev board on the GPIO header. It counts and types the devices around you, saves each scan to

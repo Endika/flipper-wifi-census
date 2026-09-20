@@ -14,8 +14,9 @@ static uint32_t max_u32(uint32_t a, uint32_t b) {
     return a > b ? a : b;
 }
 
-static void merge_one(void *ctx, const WcSignature *d) {
-    wc_census_merge_one(ctx, d);
+static bool merge_one(void *ctx, const WcSignature *d) {
+    wc_census_merge_one(ctx, d); // the ceiling is reported through dropped, not refused here
+    return true;
 }
 
 bool wc_merge_service_run(const WcStorePort *store, const char *name_a, const char *name_b,
