@@ -6,6 +6,10 @@ a renamable file on the SD card, and lets you **compare captures from different 
 to see how many devices overlap. Everything stays local on the Flipper's SD — nothing is
 uploaded anywhere.
 
+**The point of the tool — compare two locations and see who was at both:**
+
+<p align="center"><img src="assets/compare.png" alt="Compare result: A and B totals, devices common to both, and randomized devices that can't be crossed" width="360"></p>
+
 | Main menu | Live scan |
 |:---:|:---:|
 | ![Main menu](assets/menu.png) | ![Live scan: unique/stable/random counts, types, networks sought](assets/sniff.png) |
