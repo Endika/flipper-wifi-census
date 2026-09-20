@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.26](https://github.com/Endika/flipper-wifi-census/compare/v0.1.25...v0.1.26) (2026-09-20)
+
+
+### Bug Fixes
+
+* an overflowing compare list, a wrong late link, and v1 captures merged at the wrong stride ([67d3eea](https://github.com/Endika/flipper-wifi-census/commit/67d3eeaaf1077febd399fd428ed33274b4ccd7e5))
+* stream a stored capture instead of holding it whole beside its census ([04ebd1f](https://github.com/Endika/flipper-wifi-census/commit/04ebd1fc2cacf1a837c53c2e9b546872fca999e2))
+
 ## [0.1.25](https://github.com/Endika/flipper-wifi-census/compare/v0.1.24...v0.1.25) (2026-09-20)
 
 
