@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.20](https://github.com/Endika/flipper-wifi-census/compare/v0.1.19...v0.1.20) (2026-09-20)
+
+
+### Bug Fixes
+
+* reject captures over the 100-device cap with a clear message instead of risking OOM ([18206a7](https://github.com/Endika/flipper-wifi-census/commit/18206a79ffa91781916b41bbb5cc87a511f3a4b0))
+
 ## [0.1.19](https://github.com/Endika/flipper-wifi-census/compare/v0.1.18...v0.1.19) (2026-09-20)
 
 
