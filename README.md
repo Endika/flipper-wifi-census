@@ -136,6 +136,18 @@ under host test. `application/` orchestrates use cases through ports. `platform/
 furi adapters (serial, storage, clock) behind those ports, and `app/` + `scenes/` are the
 scene-manager UI. That single boundary is what keeps the logic testable on the host.
 
+### Vendor OUI table
+
+Brand labelling of **stable-MAC** devices uses `src/domain/wc_oui_table.inc`, generated from the
+official IEEE registry and bounded per vendor (the FAP loads into RAM, and phone makers randomize
+their MAC so their OUIs rarely appear in a probe). Randomized phones show no OUI brand — their
+maker/OS comes from the IE fingerprint on the **Import** path. To refresh the table:
+
+```sh
+curl -sSo oui.csv https://standards-oui.ieee.org/oui/oui.csv
+python3 tools/gen_oui_table.py oui.csv > src/domain/wc_oui_table.inc
+```
+
 ## License
 
 GPL-3.0. See [LICENSE](LICENSE).

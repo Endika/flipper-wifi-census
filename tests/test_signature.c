@@ -40,6 +40,19 @@ static void test_oui_vendor(void) {
     assert(strcmp(wc_oui_vendor_name(apple), "Apple") == 0);
 }
 
+// OUIs added by the IEEE-registry expansion (not in the original hand-curated set), each
+// verified against the registry. Proves the generated table is wired in and correct.
+static void test_oui_vendor_expanded(void) {
+    uint8_t esp[6] = {0x00, 0x4B, 0x12, 1, 2, 3};  // Espressif Inc.
+    uint8_t brcm[6] = {0x00, 0x05, 0xB5, 1, 2, 3}; // Broadcom
+    assert(wc_oui_vendor(esp) == WcVendorEspressif);
+    assert(strcmp(wc_oui_vendor_name(esp), "Espressif") == 0);
+    WcObservation o = {0};
+    memcpy(o.mac, esp, 6);
+    assert(wc_device_type_guess(&o) == WcDeviceIot);
+    assert(strcmp(wc_oui_vendor_name(brcm), "Broadcom") == 0);
+}
+
 static void test_device_type_guess(void) {
     uint8_t ap[6] = {0x00, 0x1A, 0x11, 1, 2, 3};
     uint8_t phone_rand[6] = {0xDA, 0, 0, 0, 0, 1};
@@ -107,6 +120,7 @@ static void test_signature_ssid_cap(void) {
 int main(void) {
     test_mac_is_random();
     test_oui_vendor();
+    test_oui_vendor_expanded();
     test_device_type_guess();
     test_signature_from_and_merge();
     test_signature_ssid_cap();
