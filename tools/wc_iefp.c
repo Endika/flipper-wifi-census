@@ -19,6 +19,9 @@ static void on_frame(void *ctx, const uint8_t *frame, size_t len) {
 
 // Seconds between the first and last record of the pcap.
 static uint32_t pcap_span(const uint8_t *buf, size_t sz) {
+    if (!wc_tool_is_classic_le_pcap(buf, sz)) {
+        return 0;
+    }
     uint32_t t0 = 0, last = 0;
     for (size_t o = 24; o + 16 <= sz;) {
         uint32_t ts =

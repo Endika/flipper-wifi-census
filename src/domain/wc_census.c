@@ -250,13 +250,18 @@ uint16_t wc_census_ssid_tally(const WcCensus *c, WcSsidTally *out, uint16_t cap)
             if (seen) {
                 continue;
             }
-            uint16_t devices = 0;
-            for (uint16_t k = 0; k < c->count; k++) {
-                if (wc_signature_has_ssid(&c->devices[k], ssid)) {
-                    devices++;
-                }
-            }
+            // Counting the devices per SSID is a second pass over the whole census, and the
+            // live scan only ever asks how many networks there are. Doing it anyway put that
+            // work on the GUI thread twice a second.
             if (out != NULL && distinct < cap) {
+                // Counting the devices per SSID is a second pass over the whole census, and a
+                // live scan only ever asks how many networks there are.
+                uint16_t devices = 0;
+                for (uint16_t k = 0; k < c->count; k++) {
+                    if (wc_signature_has_ssid(&c->devices[k], ssid)) {
+                        devices++;
+                    }
+                }
                 strncpy(out[distinct].ssid, ssid, WC_SSID_MAX_LEN);
                 out[distinct].ssid[WC_SSID_MAX_LEN] = '\0';
                 out[distinct].devices = devices;

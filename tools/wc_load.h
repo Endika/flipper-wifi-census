@@ -22,6 +22,20 @@ static inline void wc_tool_on_frame(void *ctx, const uint8_t *frame, size_t len)
     }
 }
 
+// The tools walk pcap records by hand to reach the per-frame timestamp and sequence number,
+// which no census keeps. That walk assumes a classic little-endian libpcap of linktype 105, so
+// it has to check first: without this a nanosecond-resolution capture (what modern tcpdump
+// writes by default) is walked as garbage and the tool reports a confident result about it.
+static inline bool wc_tool_is_classic_le_pcap(const uint8_t *b, size_t sz) {
+    if (sz < 24) {
+        return false;
+    }
+    const bool magic = b[0] == 0xD4 && b[1] == 0xC3 && b[2] == 0xB2 && b[3] == 0xA1;
+    const uint32_t link = (uint32_t)b[20] | ((uint32_t)b[21] << 8) | ((uint32_t)b[22] << 16) |
+                          ((uint32_t)b[23] << 24);
+    return magic && link == 105;
+}
+
 // Say so if the ceiling ever refused a device. Off-device it must not happen; when it does the
 // count is short, and silence is the worst way to learn that.
 static inline void wc_tool_report_dropped(const char *what, const WcCensus *c) {

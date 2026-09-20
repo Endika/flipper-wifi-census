@@ -54,14 +54,15 @@ typedef enum {
 
 // Load the selected capture into browse_census (allocating once). Returns true on success.
 static bool ensure_browse_loaded(WcApp *app) {
+    WcCaptureMeta meta; // the loader needs somewhere to put it; nothing reads it back
     if (!app->browse_census) {
         app->browse_census = malloc(sizeof(WcCensus));
         if (app->browse_census) {
             wc_census_init(app->browse_census); // the reader keeps the ceiling it is handed
         }
     }
-    return app->browse_census && wc_capture_service_load(&app->store, app->selected_file,
-                                                         &app->browse_meta, app->browse_census);
+    return app->browse_census &&
+           wc_capture_service_load(&app->store, app->selected_file, &meta, app->browse_census);
 }
 
 // A stored capture had no summary at all: its numbers only ever existed on the live scan
@@ -187,8 +188,8 @@ static void device_label(const void *context, uint32_t index, char *out, size_t 
     }
     const char *vendor = wc_signature_vendor(d);
     if (vendor[0]) {
-        snprintf(out, cap, "%s %s %02X:%02X:%02X", wc_device_type_name(d->type), vendor, d->mac[3],
-                 d->mac[4], d->mac[5]);
+        snprintf(out, cap, "%s %s %02X:%02X:%02X:%02X:%02X:%02X", wc_device_type_name(d->type),
+                 vendor, d->mac[0], d->mac[1], d->mac[2], d->mac[3], d->mac[4], d->mac[5]);
     } else {
         snprintf(out, cap, "%s %02X:%02X:%02X:%02X:%02X:%02X", wc_device_type_name(d->type),
                  d->mac[0], d->mac[1], d->mac[2], d->mac[3], d->mac[4], d->mac[5]);

@@ -82,7 +82,6 @@ typedef struct {
     char picked[2][WC_TEXT_BUF_SIZE];
     char result_text[WC_RESULT_TEXT_SIZE];
     WcCensus *browse_census; // loaded capture, heap, freed on scene exit
-    WcCaptureMeta browse_meta;
     uint16_t selected_device;
     WcKnownDb known;
     WcMarkMode mark_mode;                    // what the next MarkLabel confirm applies to
