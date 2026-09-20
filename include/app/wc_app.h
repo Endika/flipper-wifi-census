@@ -18,11 +18,11 @@
 
 #define WC_TEXT_BUF_SIZE 64
 #define WC_RESULT_TEXT_SIZE 1024
-// Most capture files / devices / networks shown in a list. Matches the census ceiling so a full
-// capture is browsable end to end — a smaller value silently hides devices you can never reach.
+// Rows a list can show: the census ceiling, so a full capture is browsable end to end.
 #define WC_MAX_LIST WC_CENSUS_MAX_DEVICES
-// A scene can add WC_MAX_LIST entries plus an "empty" placeholder; the list view drops the rest
-// silently, so catch the drift here instead of on screen.
+// Entries the app can hold NAMES for: capture files and probed SSIDs, the only two whose text
+// has no other copy in memory. Independent of the device ceiling, which they do not follow.
+#define WC_MAX_NAMED 100
 _Static_assert(WC_MAX_LIST + 1 <= WC_SCROLL_LIST_MAX, "list view too small for the longest list");
 // Auto-save rotates a bit before the hard ceiling so the ~timer-tick window before rotation
 // still has room and does not drop devices.
@@ -91,8 +91,8 @@ typedef struct {
     // Scratch for the selection lists. list_names holds what has no other copy in memory: the
     // capture file names from the SD listing, and the SSIDs of the networks list. Device and
     // known rows are rendered straight from the census and the registry instead.
-    char list_names[WC_MAX_LIST][WC_TEXT_BUF_SIZE];
-    uint16_t list_counts[WC_MAX_LIST]; // devices per SSID, for the networks rows
+    char list_names[WC_MAX_NAMED][WC_TEXT_BUF_SIZE];
+    uint16_t list_counts[WC_MAX_NAMED]; // devices per SSID, for the networks rows
     uint16_t list_count;
     uint16_t list_overflow;       // entries the list could not hold, so the screen can say so
     char menu_autosave_label[24]; // the list borrows it, so it cannot live on the stack

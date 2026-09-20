@@ -117,22 +117,17 @@ uint16_t wc_capture_peek_count(const uint8_t *buf, size_t len) {
     return get_u16(buf + WC_HEADER_SIZE - 2);
 }
 
-bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_t len) {
-    const uint16_t ceiling = c->max; // the caller's, not this build's
-    if (len < WC_HEADER_SIZE) {
+bool wc_capture_get_header(const uint8_t *in, size_t len, WcCaptureMeta *meta, uint16_t *count,
+                           uint16_t *version) {
+    if (len < WC_HEADER_SIZE || memcmp(in, k_magic, 4) != 0) {
         return false;
     }
-    const uint8_t *p = buf;
-    if (memcmp(p, k_magic, 4) != 0) {
-        return false;
-    }
-    p += 4;
-    uint16_t version = get_u16(p);
-    if (version < 1 || version > WC_CAP_VERSION) {
+    const uint8_t *p = in + 4;
+    uint16_t v = get_u16(p);
+    if (v < 1 || v > WC_CAP_VERSION) {
         return false;
     }
     p += 2;
-
     memset(meta, 0, sizeof(*meta));
     memcpy(meta->label, p, WC_LABEL_MAX);
     meta->label[WC_LABEL_MAX] = '\0';
@@ -144,58 +139,73 @@ bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_
     meta->channels_mask = get_u16(p);
     p += 2;
     meta->mode = *p++;
-    uint16_t count = get_u16(p);
-    p += 2;
+    *count = get_u16(p);
+    *version = v;
+    return true;
+}
 
-    // Rejected rather than partly loaded when it does not fit the census it is being read
-    // into: the Flipper hasn't the RAM to browse it, and a half-read capture is worse than a
-    // refused one. It is the census's OWN ceiling that decides, so a host tool that opened its
-    // census wide reads the same file the Flipper has to turn down.
+bool wc_capture_get_record(const uint8_t *in, size_t len, uint16_t version, WcSignature *out) {
+    if (len < record_size(version)) {
+        return false;
+    }
+    const uint8_t *p = in;
+    memset(out, 0, sizeof(*out));
+    memcpy(out->mac, p, 6);
+    p += 6;
+    out->mac_random = (*p++ != 0);
+    out->type = (WcDeviceType)*p++;
+    out->rssi_max = (int8_t)*p++;
+    uint8_t ssid_count = *p++;
+    if (ssid_count > WC_SIG_MAX_SSIDS) {
+        return false;
+    }
+    out->ssid_count = ssid_count;
+    out->obs_count = get_u32(p);
+    p += 4;
+    out->first_seen = get_u32(p);
+    p += 4;
+    out->last_seen = get_u32(p);
+    p += 4;
+    for (uint8_t i = 0; i < WC_SIG_MAX_SSIDS; i++) {
+        memcpy(out->ssids[i], p, WC_SSID_MAX_LEN);
+        out->ssids[i][WC_SSID_MAX_LEN] = '\0';
+        p += WC_SSID_SLOT;
+    }
+    if (version >= 2) {
+        out->ie_hash = get_u32(p);
+        p += 4;
+        out->ie_vendor = (WcVendor)*p++;
+    }
+    return true;
+}
+
+bool wc_capture_read(WcCaptureMeta *meta, WcCensus *c, const uint8_t *buf, size_t len) {
+    const uint16_t ceiling = c->max; // the caller's, not this build's
+    uint16_t count = 0, version = 0;
+    if (!wc_capture_get_header(buf, len, meta, &count, &version)) {
+        return false;
+    }
+    const uint8_t *p = buf + WC_HEADER_SIZE;
+
+    // Refused whole rather than loaded in part, against the caller's ceiling: a host tool that
+    // opened its census wide reads a file the Flipper has to turn down.
     if (count > ceiling) {
         return false;
     }
-    // The declared count must account for the buffer exactly — no truncation, no trailer.
     if (len != (size_t)WC_HEADER_SIZE + (size_t)count * record_size(version)) {
         return false;
     }
 
-    wc_census_free(c); // drop whatever it held; free() re-inits it
+    wc_census_free(c);
     wc_census_set_max(c, ceiling);
-    wc_census_reserve(c, count); // one allocation for the whole file (no realloc growth)
+    wc_census_reserve(c, count);
     for (uint16_t i = 0; i < count; i++) {
         WcSignature d;
-        memset(&d, 0, sizeof(d));
-        memcpy(d.mac, p, 6);
-        p += 6;
-        d.mac_random = (*p++ != 0);
-        d.type = (WcDeviceType)*p++;
-        d.rssi_max = (int8_t)*p++;
-        uint8_t ssid_count = *p++;
-        if (ssid_count > WC_SIG_MAX_SSIDS) {
+        if (!wc_capture_get_record(p, record_size(version), version, &d) || !wc_census_add(c, &d)) {
             wc_census_free(c);
             return false;
         }
-        d.ssid_count = ssid_count;
-        d.obs_count = get_u32(p);
-        p += 4;
-        d.first_seen = get_u32(p);
-        p += 4;
-        d.last_seen = get_u32(p);
-        p += 4;
-        for (uint8_t s = 0; s < WC_SIG_MAX_SSIDS; s++) {
-            memcpy(d.ssids[s], p, WC_SSID_MAX_LEN);
-            d.ssids[s][WC_SSID_MAX_LEN] = '\0';
-            p += WC_SSID_SLOT;
-        }
-        if (version >= 2) {
-            d.ie_hash = get_u32(p);
-            p += 4;
-            d.ie_vendor = (WcVendor)*p++;
-        }
-        if (!wc_census_add(c, &d)) {
-            wc_census_free(c);
-            return false;
-        }
+        p += record_size(version);
     }
     return true;
 }

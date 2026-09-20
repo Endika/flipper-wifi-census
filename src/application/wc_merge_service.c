@@ -14,21 +14,45 @@ static uint32_t max_u32(uint32_t a, uint32_t b) {
     return a > b ? a : b;
 }
 
+// Fold `name` into `into`, a record at a time straight off the SD. Loading it into a census of
+// its own first held that file and its devices in RAM alongside the first census - the peak
+// that pins the device ceiling.
+static bool merge_from_file(const WcStorePort *store, const char *name, WcCensus *into,
+                            WcCaptureMeta *meta) {
+    uint8_t head[64];
+    const size_t hdr = wc_capture_header_size();
+    if (hdr > sizeof(head) || store->read_range(store->self, name, 0, head, hdr) != hdr) {
+        return false;
+    }
+    uint16_t count = 0, version = 0;
+    if (!wc_capture_get_header(head, hdr, meta, &count, &version)) {
+        return false;
+    }
+    uint8_t buf[256];
+    const size_t rec = wc_capture_record_size();
+    if (rec > sizeof(buf)) {
+        return false;
+    }
+    for (uint16_t i = 0; i < count; i++) {
+        WcSignature d;
+        if (store->read_range(store->self, name, hdr + (size_t)i * rec, buf, rec) != rec ||
+            !wc_capture_get_record(buf, rec, version, &d)) {
+            return false;
+        }
+        wc_census_merge_one(into, &d);
+    }
+    return true;
+}
+
 bool wc_merge_service_run(const WcStorePort *store, const char *name_a, const char *name_b,
                           const char *out_basename, uint16_t *out_devices, uint16_t *out_dropped) {
     WcCensus *a = malloc(sizeof(WcCensus));
-    WcCensus *b = malloc(sizeof(WcCensus));
     bool ok = false;
-    if (a && b) {
+    if (a) {
         wc_census_init(a);
-        wc_census_init(b);
         WcCaptureMeta ma, mb;
         if (wc_capture_service_load(store, name_a, &ma, a) &&
-            wc_capture_service_load(store, name_b, &mb, b)) {
-            wc_census_merge(a, b);
-            wc_census_free(b); // folded into a; release before the (allocating) save
-            free(b);
-            b = NULL;
+            merge_from_file(store, name_b, a, &mb)) {
 
             WcCaptureMeta out;
             memset(&out, 0, sizeof(out));
@@ -50,10 +74,6 @@ bool wc_merge_service_run(const WcStorePort *store, const char *name_a, const ch
     if (a) {
         wc_census_free(a);
     }
-    if (b) {
-        wc_census_free(b);
-    }
     free(a);
-    free(b);
     return ok;
 }

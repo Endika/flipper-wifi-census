@@ -89,6 +89,40 @@ static size_t store_file_size(void *self, const char *name) {
     return size;
 }
 
+// Shared by both range readers: open, seek, read a slice. `verbatim` paths come from the file
+// browser; named files live under the app dir.
+static size_t store_read_range_at(const char *path, size_t offset, uint8_t *buf, size_t cap) {
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    File *file = storage_file_alloc(storage);
+    size_t read = 0;
+    if (storage_file_open(file, path, FSAM_READ, FSOM_OPEN_EXISTING)) {
+        if (storage_file_seek(file, (uint32_t)offset, true)) {
+            read = storage_file_read(file, buf, cap);
+        }
+    }
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+    return read;
+}
+
+static size_t store_read_range_path(void *self, const char *path, size_t offset, uint8_t *buf,
+                                    size_t cap) {
+    (void)self;
+    return store_read_range_at(path, offset, buf, cap);
+}
+
+static size_t store_read_range(void *self, const char *name, size_t offset, uint8_t *buf,
+                               size_t cap) {
+    (void)self;
+    if (!name_is_safe(name)) {
+        return 0;
+    }
+    char path[256];
+    full_path(path, sizeof(path), name);
+    return store_read_range_at(path, offset, buf, cap);
+}
+
 // Read a file by absolute path (used for a pcap the user picked via the browser). The path is
 // used verbatim: no app-dir prefix, no name check — the browser only yields real, chosen paths.
 static size_t store_read_path(void *self, const char *path, uint8_t *buf, size_t cap) {
@@ -219,6 +253,8 @@ WcStorePort wc_store_furi_port(void) {
         .file_size = store_file_size,
         .read_file_path = store_read_path,
         .file_size_path = store_file_size_path,
+        .read_range = store_read_range,
+        .read_range_path = store_read_range_path,
         .rename_file = store_rename,
         .delete_file = store_delete,
         .list = store_list,

@@ -26,6 +26,12 @@ typedef struct {
     // file browser). No app-dir prefix is applied — the path is used verbatim.
     size_t (*read_file_path)(void *self, const char *path, uint8_t *buf, size_t cap);
     size_t (*file_size_path)(void *self, const char *path);
+    // Read up to `cap` bytes from `offset`; 0 at end of file or on error. How a big file is
+    // consumed without being held whole, which a FAP cannot count on doing.
+    size_t (*read_range)(void *self, const char *name, size_t offset, uint8_t *buf, size_t cap);
+    size_t (*read_range_path)(void *self, const char *path, size_t offset, uint8_t *buf,
+                              size_t cap);
+
     bool (*rename_file)(void *self, const char *from, const char *to);
     bool (*delete_file)(void *self, const char *name);
     uint16_t (*list)(void *self, WcStoreNameFn cb, void *ctx);
