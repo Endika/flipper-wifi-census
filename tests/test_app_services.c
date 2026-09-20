@@ -72,6 +72,16 @@ static size_t fake_file_size(void *self, const char *name) {
     return f ? f->len : 0;
 }
 
+// The fake keys files by name; a "path" is just used as that key, so the path-based calls reuse
+// the name-based lookups. Enough to exercise the import service's path plumbing.
+static size_t fake_read_path(void *self, const char *path, uint8_t *buf, size_t cap) {
+    return fake_read(self, path, buf, cap);
+}
+
+static size_t fake_file_size_path(void *self, const char *path) {
+    return fake_file_size(self, path);
+}
+
 static bool fake_rename(void *self, const char *from, const char *to) {
     FakeFile *f = fake_find(self, from);
     if (!f) {
@@ -147,6 +157,8 @@ static WcStorePort fake_store_port(FakeStore *s) {
                      .write_file = fake_write,
                      .read_file = fake_read,
                      .file_size = fake_file_size,
+                     .read_file_path = fake_read_path,
+                     .file_size_path = fake_file_size_path,
                      .rename_file = fake_rename,
                      .delete_file = fake_delete,
                      .list = fake_list,
@@ -419,6 +431,9 @@ static void test_import_service_from_pcap(void) {
         o += 16 + fl;
     }
     assert(store.write_file(store.self, "cap.pcap", pcap, o));
+
+    // A path that doesn't exist is refused (size 0), not crashed on.
+    assert(!wc_import_service_run(&store, fake_clock(), "nope.pcap", "imp"));
 
     assert(wc_import_service_run(&store, fake_clock(), "cap.pcap", "imp"));
     WcCaptureMeta m;
