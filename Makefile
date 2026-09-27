@@ -17,7 +17,7 @@ all: test
 
 help:
 	@echo "Targets for $(PROJECT_NAME):"
-	@echo "  make test           - Host unit tests (domain logic)"
+	@echo "  make test           - Host unit tests (domain + application)"
 	@echo "  make prepare        - Symlink app into firmware applications_user"
 	@echo "  make fap            - Clean firmware build + compile .fap"
 	@echo "  make format         - clang-format"
