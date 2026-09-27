@@ -31,7 +31,7 @@ tool has to be clear about its limits:
   friend's device across places, add it to the **Known devices** list — either its stable
   MAC, or use the shared-SSID trick (have them join a network whose name you control once;
   phones keep a stable MAC *per network*, so it matches in both places). A phone that only
-  sends wildcard probes can't be pinned at all — the app tells you so instead of pretending:
+  sends wildcard probes can't be pinned at all — the app tells you so:
 
   <img src="assets/device-detail-random.png" alt="Detail of a randomized device with no named network: cannot be saved as known" width="320">
 
@@ -66,7 +66,7 @@ Three ways, pick whichever is handy:
   app to write Marauder to the board. No PC needed.
 - **Web flasher** — Chrome/Edge WebSerial, board connected by USB, no local tooling:
   <https://flash.pingequa.com/devices/flipper-wifi-devboard-marauder>.
-- **Command line** — from a machine with USB and esptool (here, the Pi).
+- **Command line** — from a machine with USB and esptool.
 
 Pin the version at **v1.17.0**; this app is written against that release's serial line
 format. If you use a different build and the counts look wrong, the probe-line format is
@@ -100,19 +100,19 @@ isolated in `src/domain/wc_marauder_parse.c` and can be adjusted there.
 
 **How two sightings are judged to be one device.** An identical stable MAC, or a randomized MAC
 naming a network that exactly one known device seeks. Both refinements below came out of
-measuring real captures, not from reasoning about them:
+measuring real captures:
 
 - A network name sought by *two* devices is a place, not an identity — `DefaultSSID` was
   measured on 16 devices with distinct, certain MACs in a single capture. Such a name stops
   being usable for linking, and two stable MACs are never merged whatever they both seek.
-- Phones send nameless probes as well as named ones. A device first heard on a nameless probe
-  used to be recorded and never reconsidered (1982 of 2171 device creations in one capture), so
-  a phone that names a network a second later was counted twice. It is now checked again when
-  the name arrives: on two real captures that collapsed 17 and 82 duplicate devices, with the
-  count of certain stable-MAC devices unchanged — the loss is only ever duplicates.
+- Phones send nameless probes as well as named ones, and most devices are first heard on a
+  nameless one (1982 of 2171 device creations in one capture). A device first heard that way is
+  checked again when the name arrives, so a phone that names a network a second later is not
+  counted twice: on two real captures that collapsed 17 and 82 duplicate devices, with the count
+  of certain stable-MAC devices unchanged — the loss is only ever duplicates.
 
 A randomized phone that only sends wildcard probes (no named network) can't be turned into a
-durable rule — the detail screen says so instead of failing silently. Tag a network it seeks.
+durable rule — the detail screen says so. Tag a network it seeks.
 
 Files are stored under `/ext/apps_data/flipper_wifi_census/`.
 
@@ -130,7 +130,8 @@ airodump) can be turned into a census, on the Flipper or on a laptop:
   one-line summary on stderr. Handy when you have the pcap but not the Flipper.
 - **On the Flipper** — use **Import pcap** in the menu: a file browser opens in the app's
   folder but lets you navigate the whole SD (e.g. Marauder's own capture folder) to pick the
-  `.pcap`. On-device import reads files up to 64 KB; use the PC tool for larger ones.
+  `.pcap`. The file is streamed, so its size is not a limit; a capture with more devices than
+  the Flipper holds (320) is imported up to that ceiling and the app says how many did not fit.
 
 ## Serial debug
 
@@ -141,9 +142,8 @@ tuning what the live scan can extract, e.g. whether the network name appears in 
 ## Auto-save (rotate) for big venues
 
 Auto-save rides on the **Scan** row itself, shown on its right as `<Auto-save: On>`; **left and
-right flip it** while OK still starts the scan. It sits where the decision is actually taken,
-instead of in a menu you have to remember to visit first. The choice is remembered between runs
-of the app, and the Settings entry shows the same value.
+right flip it** while OK still starts the scan. The choice is remembered between runs of the
+app, and the Settings entry shows the same value.
 
 With it on, a scan that fills up saves the current file and starts a fresh one automatically (`auto_YYYYMMDD_HHMM_1`, `_2`, …), instead of dropping
 devices. Pressing Back saves the final chunk too. You then merge all the pieces on a PC (see
@@ -170,9 +170,9 @@ scans, repeated, beat one long one. They also fit comfortably under the device c
 
 ## Undo MAC rotation in a long capture
 
-A long scan does not find more people, it finds the same people under more MAC addresses. Many
-phones keep counting their 802.11 sequence number straight through a MAC change, so two
-addresses whose counters meet at the moment one stops and the other starts are one phone:
+In a long scan the same phone turns up under more and more MAC addresses. Many phones keep
+counting their 802.11 sequence number straight through a MAC change, so two addresses whose
+counters meet at the moment one stops and the other starts are one phone:
 
 ```sh
 ./wc_clean capture.pcap                        # what each threshold would do
@@ -188,12 +188,12 @@ can only ever be wrong, and that count is printed as the capture's own error rat
 | 30 s | 8 | 485 | 3 |
 | 60 s | 16 | 1170 | 10 |
 
-At 10 s the 2,247-device capture above becomes 2,077 with no demonstrable mistake; at 60 s it
+At 10 s a 2,247-device capture becomes 2,077 with no demonstrable mistake; at 60 s it
 halves, but ten certain identities are already being merged wrongly, so whatever it claims about
 the randomized ones cannot be believed either. Zero here means "none among the stable MACs in
 this capture", not zero.
 
-## The phone count is a range, not a number
+## The phone count is a range
 
 **Summary** on a stored capture shows how many phones are behind the randomized MACs, as a
 range. The IE fingerprint from a pcap identifies a phone *model*, not a phone — we measured one
@@ -203,8 +203,7 @@ MACs with *different* fingerprints are certainly two phones, which puts an hones
 the count: `distinct fingerprints <= phones <= randomized MACs`.
 
 The range only appears for captures imported from a pcap. A live scan reads Marauder's summary
-lines, which carry no fingerprint, so nothing can be bounded — the Summary says so instead of
-inventing a number.
+lines, which carry no fingerprint, so nothing can be bounded — the Summary says so.
 
 ## Combine many captures on a PC (beyond the device limit)
 
@@ -258,8 +257,8 @@ awk -F',' '$2 < 3' networks.csv    # drop what is in all three captures
 ```
 
 `-o` makes both tools write a `.wcen` as well as the CSV, and that capture merges and compares
-again like any other. Without it the PC side was a dead end: CSV is the one format nothing reads
-back, so merges could not be chained and a census built on a laptop could never come home.
+again like any other. CSV is the one format nothing reads back, so without `-o` merges can't be
+chained and a census built on a laptop can't go back to the Flipper.
 
 | tool | takes | gives |
 |---|---|---|
@@ -289,10 +288,11 @@ ufbt launch        # build, install and run on a connected Flipper
 ## Architecture
 
 Hexagonal. `domain/` is pure C (observation model, device signature, dedup/census, capture
-codec + CSV, comparison, known-device rules, the Marauder line parser) and is the only part
-under host test. `application/` orchestrates use cases through ports. `platform/` holds the
-furi adapters (serial, storage, clock) behind those ports, and `app/` + `scenes/` are the
-scene-manager UI. That single boundary is what keeps the logic testable on the host.
+codec + CSV, comparison, known-device rules, the Marauder line parser, the pcap reader).
+`application/` orchestrates use cases through ports. Both are under host test, `application/`
+through in-memory fakes of those ports. `platform/` holds the furi adapters (serial, storage,
+clock) behind the ports, and `app/` + `scenes/` + `views/` are the scene-manager UI, compiled
+only by the `.fap` build. That single boundary is what keeps the logic testable on the host.
 
 ### Vendor OUI table
 
